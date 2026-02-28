@@ -33,11 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.multibandradioemulator.R
 import com.example.multibandradioemulator.audio.RadioSignalPlayer
 import com.example.multibandradioemulator.model.AntennaType
 import com.example.multibandradioemulator.ui.theme.MultiBandRadioEmulatorTheme
@@ -78,13 +80,17 @@ fun HomeScreen(
         }
     }
 
+    val deviceLocale = remember { Locale.getDefault() }
     val timeFormatter = remember {
-        DateTimeFormatter.ofPattern("HH:mm:ss", Locale.getDefault())
+        DateTimeFormatter.ofPattern("HH:mm:ss", deviceLocale)
     }
-    val spanishLocale = remember { Locale.forLanguageTag("es-ES") }
     val dateFormatter = remember {
-        DateTimeFormatter.ofPattern("EEEE, d 'de' MMMM 'de' yyyy", spanishLocale)
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(deviceLocale)
     }
+
+    // Resolve antenna strings for selected antenna
+    val selectedRegion = stringResource(selectedAntenna.regionRes)
+    val selectedLabel = "${selectedAntenna.displayName} — $selectedRegion (${selectedAntenna.frequencyKHz} kHz)"
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -114,7 +120,7 @@ fun HomeScreen(
             // Date display
             Text(
                 text = currentTime.format(dateFormatter)
-                    .replaceFirstChar { it.titlecase(spanishLocale) },
+                    .replaceFirstChar { it.titlecase(deviceLocale) },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -124,7 +130,7 @@ fun HomeScreen(
 
             // Timezone info
             Text(
-                text = "Zona horaria: ${ZoneId.systemDefault().id}",
+                text = stringResource(R.string.timezone_label, ZoneId.systemDefault().id),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center
@@ -139,10 +145,10 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = selectedAntenna.formattedLabel(),
+                    value = selectedLabel,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Antena de señal") },
+                    label = { Text(stringResource(R.string.antenna_label)) },
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
                     },
@@ -157,15 +163,19 @@ fun HomeScreen(
                     onDismissRequest = { dropdownExpanded = false }
                 ) {
                     AntennaType.entries.forEach { antenna ->
+                        val region = stringResource(antenna.regionRes)
+                        val label = "${antenna.displayName} — $region (${antenna.frequencyKHz} kHz)"
+                        val description = stringResource(antenna.descriptionRes)
+
                         DropdownMenuItem(
                             text = {
                                 Column {
                                     Text(
-                                        text = antenna.formattedLabel(),
+                                        text = label,
                                         style = MaterialTheme.typography.bodyLarge
                                     )
                                     Text(
-                                        text = antenna.description,
+                                        text = description,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -213,7 +223,7 @@ fun HomeScreen(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Detener" else "Reproducir",
+                    contentDescription = if (isPlaying) stringResource(R.string.btn_stop) else stringResource(R.string.btn_play),
                     modifier = Modifier.size(36.dp)
                 )
             }
@@ -221,7 +231,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = if (isPlaying) "Emitiendo señal ${selectedAntenna.displayName}..." else "Pulsa para emitir",
+                text = if (isPlaying) stringResource(R.string.emitting_signal, selectedAntenna.displayName) else stringResource(R.string.tap_to_emit),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isPlaying)
                     MaterialTheme.colorScheme.error

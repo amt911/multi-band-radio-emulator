@@ -93,12 +93,15 @@ class RadioSignalPlayer {
                     val now = ZonedDateTime.now()
                     val currentSecond = now.second
 
-                    // Generate a new record at the start of each minute
+                    // Generate a new record at the start of each minute.
+                    // Time signal protocols encode the NEXT minute's time,
+                    // so we add 1 minute when creating the record.
                     val minuteKey = now.hour * 60 + now.minute
                     if (currentRecord == null || minuteKey != currentRecordMinute) {
-                        currentRecord = renderer.makeTimeSignalRecord(now)
+                        val nextMinute = now.plusMinutes(1).withSecond(0).withNano(0)
+                        currentRecord = renderer.makeTimeSignalRecord(nextMinute)
                         currentRecordMinute = minuteKey
-                        Log.d(TAG, "New record for minute $minuteKey, second=$currentSecond")
+                        Log.d(TAG, "New record for minute $minuteKey (encoding ${nextMinute.hour}:${nextMinute.minute}), second=$currentSecond")
                     }
 
                     // Render and play one second of audio

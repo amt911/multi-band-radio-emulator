@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Emulador de Radio Multibanda</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_options">Opciones</string>
+    <string name="antenna_label">Antena de señal</string>
+    <string name="options_title">Opciones</string>
+    <string name="options_coming_soon">Próximamente…</string>
+    <string name="btn_play">Reproducir</string>
+    <string name="btn_stop">Detener</string>
+    <string name="emitting_signal">Emitiendo señal %1$s…</string>
+    <string name="tap_to_emit">Pulsa para emitir</string>
+    <string name="timezone_label">Zona horaria: %1$s</string>
+    <string name="dcf77_description">Mainflingen, Alemania</string>
+    <string name="dcf77_region">Europa</string>
+    <string name="wwvb_description">Fort Collins, EE.UU.</string>
+    <string name="wwvb_region">Norteamérica</string>
+    <string name="jjy_description">Fukushima/Saga, Japón</string>
+    <string name="jjy_region">Asia (Japón)</string>
+    <string name="bpc_description">Shangqiu, China</string>
+    <string name="bpc_region">Asia (China)</string>
+</resources>

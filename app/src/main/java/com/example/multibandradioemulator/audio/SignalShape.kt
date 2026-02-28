@@ -13,20 +13,20 @@ enum class SignalShape {
     SIN {
         override fun calculate(sampleIndex: Int, freq: Double, amplitude: Double, sampleRate: Int): Long {
             val time = sampleIndex.toDouble() / sampleRate
-            return round(sin(PI * freq * time) * Short.MAX_VALUE * amplitude).toLong()
+            return round(sin(2.0 * PI * freq * time) * Short.MAX_VALUE * amplitude).toLong()
         }
     },
     SQUARE {
         override fun calculate(sampleIndex: Int, freq: Double, amplitude: Double, sampleRate: Int): Long {
             val time = sampleIndex.toDouble() / sampleRate
-            val sineValue = sin(PI * freq * time)
+            val sineValue = sin(2.0 * PI * freq * time)
             return round((if (sineValue >= 0.0) Short.MAX_VALUE else Short.MIN_VALUE).toDouble() * amplitude).toLong()
         }
     },
     TRIANGLE {
         override fun calculate(sampleIndex: Int, freq: Double, amplitude: Double, sampleRate: Int): Long {
             val time = sampleIndex.toDouble() / sampleRate
-            val sine = sin(PI * freq * time)
+            val sine = sin(2.0 * PI * freq * time)
             return round((2.0 / PI) * asin(sine) * Short.MAX_VALUE * amplitude).toLong()
         }
     };

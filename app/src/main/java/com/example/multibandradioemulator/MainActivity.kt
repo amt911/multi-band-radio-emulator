@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -66,10 +67,10 @@ fun MainApp() {
                         icon = {
                             Icon(
                                 imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.label
+                                contentDescription = stringResource(item.labelRes)
                             )
                         },
-                        label = { Text(item.label) }
+                        label = { Text(stringResource(item.labelRes)) }
                     )
                 }
             }

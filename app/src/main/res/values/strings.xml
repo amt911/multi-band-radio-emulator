@@ -1,7 +1,21 @@
 <resources>
     <string name="app_name">Multi Band Radio Emulator</string>
-    <string name="nav_home">Inicio</string>
-    <string name="nav_options">Opciones</string>
-    <string name="antenna_label">Antena de señal</string>
-    <string name="options_coming_soon">Próximamente…</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_options">Options</string>
+    <string name="antenna_label">Signal antenna</string>
+    <string name="options_title">Options</string>
+    <string name="options_coming_soon">Coming soon…</string>
+    <string name="btn_play">Play</string>
+    <string name="btn_stop">Stop</string>
+    <string name="emitting_signal">Emitting %1$s signal…</string>
+    <string name="tap_to_emit">Tap to emit</string>
+    <string name="timezone_label">Timezone: %1$s</string>
+    <string name="dcf77_description">Mainflingen, Germany</string>
+    <string name="dcf77_region">Europe</string>
+    <string name="wwvb_description">Fort Collins, USA</string>
+    <string name="wwvb_region">North America</string>
+    <string name="jjy_description">Fukushima/Saga, Japan</string>
+    <string name="jjy_region">Asia (Japan)</string>
+    <string name="bpc_description">Shangqiu, China</string>
+    <string name="bpc_region">Asia (China)</string>
 </resources>
