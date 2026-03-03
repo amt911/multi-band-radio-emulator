@@ -80,41 +80,57 @@ class RadioSignalPlayer {
             .build()
 
         audioTrack = track
-        track.play()
 
         playbackThread = Thread({
             Log.i(TAG, "Playback started: ${antennaType.displayName}, freq=$freq Hz")
 
             try {
+                // Wait for the next second boundary so the AM modulation
+                // pattern aligns with wall-clock seconds.
+                val nowMs = System.currentTimeMillis()
+                val waitMs = 1000L - (nowMs % 1000L)
+                Thread.sleep(waitMs)
+
+                track.play()
+
+                // Use a render-time cursor that advances by exactly 1 second
+                // per loop iteration.  This prevents the old bug where
+                // re-reading the wall clock after a blocking write() caused
+                // duplicate or skipped seconds.
+                var renderTime = ZonedDateTime.now()
                 var currentRecord: TimeSignalRecord? = null
                 var currentRecordMinute = -1
 
                 while (isPlaying.get() && !Thread.currentThread().isInterrupted) {
-                    val now = ZonedDateTime.now()
-                    val currentSecond = now.second
+                    val renderSecond = renderTime.second
+                    val minuteKey = renderTime.hour * 60 + renderTime.minute
 
-                    // Generate a new record at the start of each minute.
-                    // Time signal protocols encode the NEXT minute's time,
-                    // so we add 1 minute when creating the record.
-                    val minuteKey = now.hour * 60 + now.minute
+                    // Generate a new record at each minute boundary.
+                    // DCF77 encodes the NEXT minute; others encode the current one.
                     if (currentRecord == null || minuteKey != currentRecordMinute) {
-                        val nextMinute = now.plusMinutes(1).withSecond(0).withNano(0)
-                        currentRecord = renderer.makeTimeSignalRecord(nextMinute)
+                        val recordTime = if (renderer.encodesNextMinute) {
+                            renderTime.plusMinutes(1).withSecond(0).withNano(0)
+                        } else {
+                            renderTime.withSecond(0).withNano(0)
+                        }
+                        currentRecord = renderer.makeTimeSignalRecord(recordTime)
                         currentRecordMinute = minuteKey
-                        Log.d(TAG, "New record for minute $minuteKey (encoding ${nextMinute.hour}:${nextMinute.minute}), second=$currentSecond")
+                        Log.d(TAG, "New record for minute $minuteKey (encoding ${recordTime.hour}:${recordTime.minute}), second=$renderSecond")
                     }
 
-                    // Render and play one second of audio
+                    // Render one second of audio
                     val pcmData = renderer.renderSecondPcm(
-                        record = currentRecord,
-                        secondIndex = currentSecond,
+                        record = currentRecord!!,
+                        secondIndex = renderSecond,
                         freq = freq,
                         sampleRate = SAMPLE_RATE,
                         signalShape = signalShape,
                         amplitudeDeviation = amplitudeDeviation
                     )
 
-                    // Write PCM data to AudioTrack (blocking)
+                    // Write PCM data to AudioTrack.  The call blocks when the
+                    // internal buffer is full, which naturally paces playback
+                    // at real-time speed — no manual sleep needed.
                     var offset = 0
                     var remaining = pcmData.size
                     while (remaining > 0 && isPlaying.get()) {
@@ -127,12 +143,8 @@ class RadioSignalPlayer {
                         remaining -= written
                     }
 
-                    // Synchronize to the next second boundary
-                    val elapsed = System.currentTimeMillis() % 1000
-                    val sleepMs = if (elapsed < 50) 0L else maxOf(0L, 1000L - elapsed - 50)
-                    if (sleepMs > 0) {
-                        Thread.sleep(sleepMs)
-                    }
+                    // Advance render cursor to the next second
+                    renderTime = renderTime.plusSeconds(1)
                 }
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()

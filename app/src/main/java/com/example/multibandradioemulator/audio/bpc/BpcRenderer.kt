@@ -35,8 +35,8 @@ class BpcRenderer : TimeSignalRenderer {
         val bpcRecord = record as BpcRecord
         val bitPair = bpcRecord.bcpBitString.getBitPair(secondIndex)
 
-        val syncPrefixSamples = if (secondIndex == 19 || secondIndex == 39 || secondIndex == 59) {
-            -1  // Marker: full reduced amplitude for the whole second
+        val syncPrefixSamples = if (secondIndex % 20 == 0) {
+            -1  // Reference marker: full power for the whole second
         } else {
             when (bitPair) {
                 0 -> samples00

@@ -13,7 +13,7 @@ import java.time.ZonedDateTime
 class JjyRenderer : TimeSignalRenderer {
 
     override val amplitudeDeviation: Double = 0.90
-    override val carrierFrequencies: List<Int> = listOf(4100, 13333, 15900)
+    override val carrierFrequencies: List<Int> = listOf(5714, 8000, 13333)
 
     override fun makeTimeSignalRecord(time: ZonedDateTime): TimeSignalRecord {
         return JjyRecord.create(time)

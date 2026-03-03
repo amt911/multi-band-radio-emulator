@@ -46,52 +46,54 @@ class BpcRecord(time: ZonedDateTime) : TimeSignalRecord(-1L, time.second) {
             for (i in 0..2) {
                 val offset = i * 40
 
-                // Frame identifier
+                // Position 0: Reference marker (full power, no modulation)
+                buffer.append("00")
+
+                // Position 1: Frame identifier
                 when (i) {
                     0 -> buffer.append("00")
                     1 -> buffer.append("01")
                     2 -> buffer.append("10")
                 }
 
-                // Unused
+                // Position 2: Unused
                 buffer.append("00")
 
-                // Hours (12-hour format)
+                // Positions 3-4: Hours (12-hour format, 4 bits)
                 writeBinaryInt(buffer, hours % 12, 4)
 
-                // Minutes
+                // Positions 5-7: Minutes (6 bits)
                 writeBinaryInt(buffer, minutes, 6)
 
-                // Unused
+                // Half of position 8: Unused
                 buffer.append('0')
 
-                // Day of week
+                // Positions 8-9: Day of week (3 bits)
                 writeBinaryInt(buffer, dayOfWeek, 3)
 
-                // PM flag
-                buffer.append(if (hours > 12) '1' else '0')
+                // Half of position 10: PM flag
+                buffer.append(if (hours >= 12) '1' else '0')
 
-                // P1 parity
-                buffer.append(if (isEven(buffer, offset, offset + 18)) '1' else '0')
+                // Half of position 10: P1 parity (symbols 1-9)
+                buffer.append(if (isEven(buffer, offset + 2, offset + 20)) '1' else '0')
 
-                // Unused
+                // Half of position 11: Unused
                 buffer.append('0')
 
-                // Day of month
+                // Positions 11-13: Day of month (5 bits)
                 writeBinaryInt(buffer, dayOfMonth, 5)
 
-                // Month
+                // Positions 14-15: Month (4 bits)
                 writeBinaryInt(buffer, month, 4)
 
-                // Year (6 bits + 1 bit)
+                // Positions 16-18: Year (6 bits)
                 writeBinaryInt(buffer, year and 0b111111, 6)
+
+                // Half of position 19: Year MSB
                 buffer.append(if ((year and 0b1000000) == 0) '0' else '1')
 
-                // P2 parity
-                buffer.append(if (isEven(buffer, offset + 20, offset + 36)) '1' else '0')
-
-                // Sync marker
-                buffer.append("00")
+                // Half of position 19: P2 parity (symbols 11-18)
+                buffer.append(if (isEven(buffer, offset + 22, offset + 38)) '1' else '0')
             }
             return buffer.toString()
         }

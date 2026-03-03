@@ -11,6 +11,7 @@ import java.time.ZonedDateTime
  */
 class Dcf77Renderer : TimeSignalRenderer {
 
+    override val encodesNextMinute: Boolean = true
     override val amplitudeDeviation: Double = 0.85
     override val carrierFrequencies: List<Int> = listOf(12916, 15500, 19375)
 

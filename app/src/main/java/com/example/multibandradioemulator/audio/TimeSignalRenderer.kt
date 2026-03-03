@@ -9,6 +9,9 @@ import java.time.ZonedDateTime
  */
 interface TimeSignalRenderer {
 
+    /** Whether this protocol encodes the NEXT minute's time (true) or the current minute (false). */
+    val encodesNextMinute: Boolean get() = false
+
     /** AM modulation depth (0.0 to 1.0). Higher = stronger modulation. */
     val amplitudeDeviation: Double
 
