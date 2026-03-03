@@ -44,15 +44,11 @@ class WwvbRenderer : TimeSignalRenderer {
         val baseOffset = secondIndex * sampleRate
 
         for (sample in 0 until sampleRate) {
-            val amplitude = if (sample <= syncPrefixSamples) {
-                1.0 - amplitudeDeviation
-            } else {
-                1.0
-            }
+            val amplitude = smoothedAmplitude(sample, syncPrefixSamples, amplitudeDeviation, sampleRate)
             val sampleIndex = baseOffset + sample
-            val volume = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
-            wavBuffer[sample * 2] = (volume and 0xFF).toByte()
-            wavBuffer[sample * 2 + 1] = ((volume ushr 8) and 0xFF).toByte()
+            val pcmValue = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
+            wavBuffer[sample * 2] = (pcmValue and 0xFF).toByte()
+            wavBuffer[sample * 2 + 1] = ((pcmValue ushr 8) and 0xFF).toByte()
         }
         return wavBuffer
     }

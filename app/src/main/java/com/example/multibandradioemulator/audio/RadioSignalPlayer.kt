@@ -49,7 +49,12 @@ class RadioSignalPlayer {
 
         val renderer = getRenderer(antennaType)
         val freq = renderer.carrierFrequencies[1].toDouble() // Use middle frequency
-        val signalShape = SignalShape.SQUARE // Square wave for stronger harmonics
+        // Sine wave is the correct choice at these carrier frequencies (12-19 kHz)
+        // because SQUARE/TRIANGLE harmonics exceed the Nyquist limit (24 kHz at 48 kHz
+        // sample rate), producing aliased noise instead of useful harmonics.
+        // The real harmonics at 77.5/60/40/68.5 kHz are generated mechanically by the
+        // speaker's non-linearity, which works best with a clean high-amplitude sine input.
+        val signalShape = SignalShape.SIN
         val amplitudeDeviation = renderer.amplitudeDeviation
 
         val bufferSize = maxOf(
