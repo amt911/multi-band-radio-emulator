@@ -31,4 +31,8 @@
     <string name="select_time">Seleccionar hora</string>
     <string name="confirm">Aceptar</string>
     <string name="cancel">Cancelar</string>
+    <string name="signal_encoding">Codificación de señal</string>
+    <string name="minute_overview">Vista del minuto</string>
+    <string name="legend_marker">Marcador</string>
+    <string name="legend_current">Actual</string>
 </resources>

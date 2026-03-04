@@ -30,4 +30,8 @@
     <string name="select_time">Select time</string>
     <string name="confirm">OK</string>
     <string name="cancel">Cancel</string>
+    <string name="signal_encoding">Signal encoding</string>
+    <string name="minute_overview">Minute overview</string>
+    <string name="legend_marker">Marker</string>
+    <string name="legend_current">Current</string>
 </resources>
