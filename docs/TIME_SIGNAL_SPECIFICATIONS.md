@@ -106,20 +106,30 @@ To encode 14:32 CET on Wednesday, March 4, 2026:
 
 ### Modulation Scheme
 
-MSF is unique in that it transmits **two bits per second** (bit A and bit B) using four different carrier-off patterns at the start of each second.
+MSF uses **on-off keying** (OOK): the carrier is completely shut off during modulation periods, unlike DCF77/WWVB which only reduce the carrier amplitude. Every second has at least 100 ms of carrier-off.
 
-| Bit A | Bit B | Modulation Pattern |
-|-------|-------|--------------------|
+MSF conceptually transmits **two bits per second** (bit A and bit B), yielding four possible modulation patterns:
+
+| Bit A | Bit B | Carrier-Off Pattern |
+|-------|-------|---------------------|
 | 0 | 0 | 100 ms off |
 | 1 | 0 | 200 ms off |
 | 0 | 1 | 100 ms off, 100 ms on, 100 ms off (split) |
 | 1 | 1 | 300 ms off |
 
+In practice, B is always 0 for seconds 1–52 (data range), and A is always 1 for seconds 53–58 (secondary minute marker). This means:
+
+- **Seconds 1–52**: Only patterns `00` (100 ms off) and `10` (200 ms off) are used.
+- **Seconds 53–58**: Only patterns `10` (200 ms off, if B=0) and `11` (300 ms off, if B=1) are used.
+
+The "split" pattern (`01`) never occurs under normal operation.
+
 Special seconds:
 - **Second 0** (minute marker): 500 ms off
-- **Second 59**: No carrier reduction (full carrier)
+- **Second 59**: 100 ms off (base modulation only, no data)
 
-- **AM deviation**: ~90%
+The secondary minute marker (seconds 53–58) has A bits = `011111` and is always present. Combined with the B-stream parity/BST data, this produces recognizable 200–300 ms off patterns that receivers use for frame synchronization.
+
 - **Encodes**: The **next minute's** time (like DCF77)
 
 ### Time Code Encoding — Bit A (time/date data)
@@ -129,32 +139,47 @@ Bit A carries the time and date information in **BCD format, MSB first**.
 | Second(s) | Bits | Field | Description |
 |-----------|------|-------|-------------|
 | 0 | — | Minute marker | 500 ms off |
-| 1–8 | 8 | DUT1 positive | Number of 1s = DUT1 × 10 if DUT1 > 0 |
-| 9–16 | 8 | DUT1 negative | Number of 1s = |DUT1| × 10 if DUT1 < 0 |
+| 1–8 | 8 | DUT1 positive | Unary: number of 1s = DUT1 × 10 if DUT1 > 0 |
+| 9–16 | 8 | DUT1 negative | Unary: number of 1s = |DUT1| × 10 if DUT1 < 0 |
 | 17–20 | 4 | Year tens | BCD tens digit (0–9), MSB first |
 | 21–24 | 4 | Year units | BCD units digit (0–9), MSB first |
 | 25 | 1 | Month tens | BCD tens digit (0 or 1) |
 | 26–29 | 4 | Month units | BCD units digit (0–9), MSB first |
-| 30–31 | 2 | Day of month tens | BCD tens digit (0–3) |
+| 30–31 | 2 | Day of month tens | BCD tens digit (0–3), MSB first |
 | 32–35 | 4 | Day of month units | BCD units digit (0–9), MSB first |
 | 36–38 | 3 | Day of week | 0 = Sunday, 6 = Saturday, MSB first |
-| 39–40 | 2 | Hour tens | BCD tens digit (0–2) |
+| 39–40 | 2 | Hour tens | BCD tens digit (0–2), MSB first |
 | 41–44 | 4 | Hour units | BCD units digit (0–9), MSB first |
-| 45–47 | 3 | Minute tens | BCD tens digit (0–5) |
+| 45–47 | 3 | Minute tens | BCD tens digit (0–5), MSB first |
 | 48–51 | 4 | Minute units | BCD units digit (0–9), MSB first |
 | 52 | 1 | Unused | Always 0 |
+| 53–58 | 6 | Secondary marker | Always `011111` (A = 1 for seconds 54–58, A = 0 for second 53) |
 
 ### Time Code Encoding — Bit B (status and parity)
 
-| Second(s) | Field | Description |
-|-----------|-------|-------------|
-| 1–52 | Reserved | All 0 |
-| 53 | BST warning | 1 = BST/GMT change within next hour |
-| 54–55 | BST status | 01 = BST active; 10 = GMT active |
-| 56 | Unused | Reserved |
-| 57 | Parity 1 | Even parity over seconds 17A–24A (year) |
-| 58 | Parity 2 | Even parity over seconds 25A–35A (month + day) |
-| 59 | — | No modulation |
+Bit B is 0 for all seconds except 53–58, where it carries parity and BST information.
+
+| Second | Field | Description |
+|--------|-------|-------------|
+| 1–52 | Reserved | Always 0 |
+| 53 | BST warning | 1 = BST/GMT changeover within 61 minutes |
+| 54 | Parity 1 | **Odd** parity over seconds 17A–24A (year) |
+| 55 | Parity 2 | **Odd** parity over seconds 25A–35A (month + day of month) |
+| 56 | Parity 3 | **Odd** parity over seconds 36A–38A (day of week) |
+| 57 | Parity 4 | **Odd** parity over seconds 39A–51A (hour + minute) |
+| 58 | BST flag | 1 = BST currently active for the transmitted time |
+| 59 | — | No data (100 ms base carrier-off only) |
+
+### Parity Rules
+
+MSF uses **odd parity** (the total number of 1-bits in each group, including the parity bit itself, must be odd). There are four independent parity groups:
+
+| Parity Bit | Position | Covers A-bits | Field(s) Protected |
+|------------|----------|---------------|--------------------|
+| P1 | 54B | 17A–24A | Year |
+| P2 | 55B | 25A–35A | Month + day of month |
+| P3 | 56B | 36A–38A | Day of week |
+| P4 | 57B | 39A–51A | Hour + minute |
 
 ---
 
@@ -422,6 +447,16 @@ Real longwave frequencies (40–77.5 kHz) are far above the audible range and ca
 - **Waveform**: Sine wave (avoids aliasing that would occur with square/triangle waves at these frequencies)
 - **Transition smoothing**: 2 ms cosine ramps at amplitude transitions to prevent audible clicks
 - **Playback**: Streaming mode via Android AudioTrack, blocking writes pace output to real-time
+
+### Modulation Types
+
+| Protocol | Modulation | Carrier During "Off" |
+|----------|------------|----------------------|
+| DCF77 | AM (amplitude reduction) | ~15% of full power |
+| MSF | OOK (on-off keying) | 0% (carrier fully absent) |
+| WWVB | AM (amplitude reduction) | ~14% of full power (-17 dB) |
+| JJY | AM (amplitude reduction) | ~10% of full power |
+| BPC | AM (amplitude reduction) | ~5% of full power |
 
 ### BCD Encoding Variants
 
