@@ -3,15 +3,26 @@ package com.example.multibandradioemulator.ui.screens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -24,10 +35,15 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,10 +60,14 @@ import com.example.multibandradioemulator.audio.RadioSignalPlayer
 import com.example.multibandradioemulator.model.AntennaType
 import com.example.multibandradioemulator.ui.theme.MultiBandRadioEmulatorTheme
 import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +80,25 @@ fun HomeScreen(
     var dropdownExpanded by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
 
+    // Custom time state
+    var useCustomTime by remember { mutableStateOf(false) }
+    var customBaseTime by remember { mutableStateOf<ZonedDateTime?>(null) }
+    var customSetAtMillis by remember { mutableLongStateOf(0L) }
+
+    // Date/time picker dialog states
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+    val timePickerState = rememberTimePickerState()
+
     val player = remember { RadioSignalPlayer() }
+
+    // Helper to compute the current custom ZonedDateTime (adjusted for elapsed time)
+    fun getCurrentCustomZonedTime(): ZonedDateTime? {
+        if (!useCustomTime || customBaseTime == null) return null
+        val elapsed = System.currentTimeMillis() - customSetAtMillis
+        return customBaseTime!!.plus(elapsed, ChronoUnit.MILLIS)
+    }
 
     // Clean up player when composable leaves composition
     DisposableEffect(Unit) {
@@ -70,10 +108,14 @@ fun HomeScreen(
     }
 
     // Update time every second
-    LaunchedEffect(Unit) {
+    LaunchedEffect(useCustomTime, customBaseTime, customSetAtMillis) {
         while (true) {
-            currentTime = LocalDateTime.now()
-            // Calculate delay to next second boundary for accuracy
+            currentTime = if (useCustomTime && customBaseTime != null) {
+                val elapsed = System.currentTimeMillis() - customSetAtMillis
+                customBaseTime!!.plus(elapsed, ChronoUnit.MILLIS).toLocalDateTime()
+            } else {
+                LocalDateTime.now()
+            }
             val now = System.currentTimeMillis()
             val delayMs = 1000L - (now % 1000L)
             delay(delayMs)
@@ -92,6 +134,72 @@ fun HomeScreen(
     val selectedRegion = stringResource(selectedAntenna.regionRes)
     val selectedLabel = "${selectedAntenna.displayName} — $selectedRegion (${selectedAntenna.frequencyKHz} kHz)"
 
+    // Date picker dialog
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDatePicker = false
+                    showTimePicker = true
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // Time picker dialog
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTimePicker = false
+
+                    val selectedDate = datePickerState.selectedDateMillis?.let {
+                        Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate()
+                    } ?: currentTime.toLocalDate()
+
+                    val selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                    val selectedDateTime = ZonedDateTime.of(
+                        selectedDate, selectedTime, ZoneId.systemDefault()
+                    )
+
+                    customBaseTime = selectedDateTime
+                    customSetAtMillis = System.currentTimeMillis()
+                    useCustomTime = true
+
+                    // If playing, restart with the new custom time
+                    if (isPlaying) {
+                        player.stop()
+                        player.start(selectedAntenna, selectedDateTime)
+                        // isPlaying remains true
+                    }
+                }) { Text(stringResource(R.string.confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            title = { Text(stringResource(R.string.select_time)) },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    TimePicker(state = timePickerState)
+                }
+            }
+        )
+    }
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -99,6 +207,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -128,15 +237,73 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Timezone info
-            Text(
-                text = stringResource(R.string.timezone_label, ZoneId.systemDefault().id),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-                textAlign = TextAlign.Center
-            )
+            // Timezone info or custom time indicator
+            if (useCustomTime) {
+                Text(
+                    text = stringResource(R.string.using_custom_time),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.timezone_label, ZoneId.systemDefault().id),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    textAlign = TextAlign.Center
+                )
+            }
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Custom time controls
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AssistChip(
+                    onClick = { showDatePicker = true },
+                    label = {
+                        Text(
+                            if (useCustomTime) stringResource(R.string.change_time)
+                            else stringResource(R.string.set_custom_time)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.EditCalendar,
+                            contentDescription = null,
+                            modifier = Modifier.size(AssistChipDefaults.IconSize)
+                        )
+                    }
+                )
+
+                if (useCustomTime) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AssistChip(
+                        onClick = {
+                            useCustomTime = false
+                            customBaseTime = null
+
+                            // If playing, restart with phone time
+                            if (isPlaying) {
+                                player.stop()
+                                player.start(selectedAntenna)
+                            }
+                        },
+                        label = { Text(stringResource(R.string.reset_to_phone_time)) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.PhoneAndroid,
+                                contentDescription = null,
+                                modifier = Modifier.size(AssistChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Antenna selector
             ExposedDropdownMenuBox(
@@ -190,7 +357,7 @@ fun HomeScreen(
                                 selectedAntenna = antenna
                                 dropdownExpanded = false
                                 if (wasPlaying) {
-                                    player.start(antenna)
+                                    player.start(antenna, getCurrentCustomZonedTime())
                                     isPlaying = true
                                 }
                             },
@@ -209,7 +376,7 @@ fun HomeScreen(
                         player.stop()
                         isPlaying = false
                     } else {
-                        player.start(selectedAntenna)
+                        player.start(selectedAntenna, getCurrentCustomZonedTime())
                         isPlaying = true
                     }
                 },

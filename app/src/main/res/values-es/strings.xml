@@ -13,10 +13,22 @@
     <string name="timezone_label">Zona horaria: %1$s</string>
     <string name="dcf77_description">Mainflingen, Alemania</string>
     <string name="dcf77_region">Europa</string>
+    <string name="msf_description">Anthorn, Reino Unido</string>
+    <string name="msf_region">Europa</string>
     <string name="wwvb_description">Fort Collins, EE.UU.</string>
     <string name="wwvb_region">Norteamérica</string>
-    <string name="jjy_description">Fukushima/Saga, Japón</string>
-    <string name="jjy_region">Asia (Japón)</string>
+    <string name="jjy40_description">Hagane-yama, Japón (40 kHz)</string>
+    <string name="jjy40_region">Asia (Japón)</string>
+    <string name="jjy60_description">Ōtakadoya-yama, Japón (60 kHz)</string>
+    <string name="jjy60_region">Asia (Japón)</string>
     <string name="bpc_description">Shangqiu, China</string>
     <string name="bpc_region">Asia (China)</string>
+    <string name="set_custom_time">Establecer hora personalizada</string>
+    <string name="change_time">Cambiar hora</string>
+    <string name="using_custom_time">Usando hora personalizada</string>
+    <string name="reset_to_phone_time">Volver a la hora del móvil</string>
+    <string name="select_date">Seleccionar fecha</string>
+    <string name="select_time">Seleccionar hora</string>
+    <string name="confirm">Aceptar</string>
+    <string name="cancel">Cancelar</string>
 </resources>

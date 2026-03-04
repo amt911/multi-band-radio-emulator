@@ -12,10 +12,22 @@
     <string name="timezone_label">Timezone: %1$s</string>
     <string name="dcf77_description">Mainflingen, Germany</string>
     <string name="dcf77_region">Europe</string>
+    <string name="msf_description">Anthorn, United Kingdom</string>
+    <string name="msf_region">Europe</string>
     <string name="wwvb_description">Fort Collins, USA</string>
     <string name="wwvb_region">North America</string>
-    <string name="jjy_description">Fukushima/Saga, Japan</string>
-    <string name="jjy_region">Asia (Japan)</string>
+    <string name="jjy40_description">Hagane-yama, Japan (40 kHz)</string>
+    <string name="jjy40_region">Asia (Japan)</string>
+    <string name="jjy60_description">Ōtakadoya-yama, Japan (60 kHz)</string>
+    <string name="jjy60_region">Asia (Japan)</string>
     <string name="bpc_description">Shangqiu, China</string>
     <string name="bpc_region">Asia (China)</string>
+    <string name="set_custom_time">Set custom time</string>
+    <string name="change_time">Change time</string>
+    <string name="using_custom_time">Using custom time</string>
+    <string name="reset_to_phone_time">Reset to phone time</string>
+    <string name="select_date">Select date</string>
+    <string name="select_time">Select time</string>
+    <string name="confirm">OK</string>
+    <string name="cancel">Cancel</string>
 </resources>

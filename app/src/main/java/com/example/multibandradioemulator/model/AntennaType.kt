@@ -19,17 +19,29 @@ enum class AntennaType(
         regionRes = R.string.dcf77_region,
         frequencyKHz = 77.5
     ),
+    MSF(
+        displayName = "MSF",
+        descriptionRes = R.string.msf_description,
+        regionRes = R.string.msf_region,
+        frequencyKHz = 60.0
+    ),
     WWVB(
         displayName = "WWVB",
         descriptionRes = R.string.wwvb_description,
         regionRes = R.string.wwvb_region,
         frequencyKHz = 60.0
     ),
-    JJY(
-        displayName = "JJY",
-        descriptionRes = R.string.jjy_description,
-        regionRes = R.string.jjy_region,
-        frequencyKHz = 40.0 // JJY transmits on 40 kHz and 60 kHz
+    JJY40(
+        displayName = "JJY40",
+        descriptionRes = R.string.jjy40_description,
+        regionRes = R.string.jjy40_region,
+        frequencyKHz = 40.0
+    ),
+    JJY60(
+        displayName = "JJY60",
+        descriptionRes = R.string.jjy60_description,
+        regionRes = R.string.jjy60_region,
+        frequencyKHz = 60.0
     ),
     BPC(
         displayName = "BPC",

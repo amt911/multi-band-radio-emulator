@@ -8,6 +8,7 @@ import com.example.multibandradioemulator.model.AntennaType
 import com.example.multibandradioemulator.audio.bpc.BpcRenderer
 import com.example.multibandradioemulator.audio.dcf77.Dcf77Renderer
 import com.example.multibandradioemulator.audio.jjy.JjyRenderer
+import com.example.multibandradioemulator.audio.msf.MsfRenderer
 import com.example.multibandradioemulator.audio.wwvb.WwvbRenderer
 import java.time.ZonedDateTime
 import java.util.concurrent.atomic.AtomicBoolean
@@ -34,8 +35,10 @@ class RadioSignalPlayer {
     private fun getRenderer(antennaType: AntennaType): TimeSignalRenderer {
         return when (antennaType) {
             AntennaType.DCF77 -> Dcf77Renderer()
+            AntennaType.MSF -> MsfRenderer()
             AntennaType.WWVB -> WwvbRenderer()
-            AntennaType.JJY -> JjyRenderer()
+            AntennaType.JJY40 -> JjyRenderer(is60kHz = false)
+            AntennaType.JJY60 -> JjyRenderer(is60kHz = true)
             AntennaType.BPC -> BpcRenderer()
         }
     }
@@ -44,7 +47,7 @@ class RadioSignalPlayer {
      * Start playing the time signal for the specified antenna type.
      * Playback will continue until [stop] is called.
      */
-    fun start(antennaType: AntennaType) {
+    fun start(antennaType: AntennaType, customTime: ZonedDateTime? = null) {
         if (isPlaying.getAndSet(true)) return // Already playing
 
         val renderer = getRenderer(antennaType)
@@ -102,7 +105,7 @@ class RadioSignalPlayer {
                 // per loop iteration.  This prevents the old bug where
                 // re-reading the wall clock after a blocking write() caused
                 // duplicate or skipped seconds.
-                var renderTime = ZonedDateTime.now()
+                var renderTime = customTime ?: ZonedDateTime.now()
                 var currentRecord: TimeSignalRecord? = null
                 var currentRecordMinute = -1
 

@@ -7,13 +7,19 @@ import java.time.ZonedDateTime
 
 /**
  * JJY signal renderer. Generates AM-modulated PCM audio.
- * Carrier frequencies are sub-harmonics of 40 kHz.
+ * Carrier frequencies are sub-harmonics of 40 kHz or 60 kHz.
  * Includes Morse code "JJY" call sign at minutes 15 and 45.
+ *
+ * @param is60kHz If true, uses 60 kHz sub-harmonics (JJY60 from Ōtakadoya-yama, Fukushima).
+ *               If false, uses 40 kHz sub-harmonics (JJY40 from Hagane-yama, Saga/Fukuoka).
  */
-class JjyRenderer : TimeSignalRenderer {
+class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
 
     override val amplitudeDeviation: Double = 0.90
-    override val carrierFrequencies: List<Int> = listOf(5714, 8000, 13333)
+    override val carrierFrequencies: List<Int> = if (is60kHz)
+        listOf(8571, 12000, 15000)  // 60 kHz sub-harmonics
+    else
+        listOf(5714, 8000, 13333)   // 40 kHz sub-harmonics
 
     override fun makeTimeSignalRecord(time: ZonedDateTime): TimeSignalRecord {
         return JjyRecord.create(time)
