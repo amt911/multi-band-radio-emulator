@@ -1,6 +1,5 @@
 package com.example.multibandradioemulator.ui.components
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -36,7 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
@@ -48,17 +47,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.multibandradioemulator.R
-import com.example.multibandradioemulator.audio.TimeSignalRecord
 import com.example.multibandradioemulator.audio.bpc.BpcRecord
-import com.example.multibandradioemulator.audio.bpc.BpcRenderer
 import com.example.multibandradioemulator.audio.dcf77.Dcf77Record
-import com.example.multibandradioemulator.audio.dcf77.Dcf77Renderer
 import com.example.multibandradioemulator.audio.jjy.JjyRecord
-import com.example.multibandradioemulator.audio.jjy.JjyRenderer
 import com.example.multibandradioemulator.audio.msf.MsfRecord
-import com.example.multibandradioemulator.audio.msf.MsfRenderer
 import com.example.multibandradioemulator.audio.wwvb.WwvbRecord
-import com.example.multibandradioemulator.audio.wwvb.WwvbRenderer
 import com.example.multibandradioemulator.model.AntennaType
 import kotlinx.coroutines.delay
 import java.time.ZonedDateTime
@@ -68,29 +61,15 @@ import kotlin.math.roundToInt
 
 // ── Data model ──────────────────────────────────────────────────────────
 
-/**
- * Visualization info for one second of the signal.
- */
 data class SecondInfo(
     val secondIndex: Int,
-    /** Carrier-off (or reduced) duration in milliseconds. -1 = no modulation. */
     val offDurationMs: Int,
-    /** Whether this second is a marker (minute or position marker). */
     val isMarker: Boolean,
-    /**
-     * If true, reduced→full (most protocols).
-     * If false, full→reduced (JJY).
-     */
     val reducedFirst: Boolean = true,
-    /** Amplitude deviation. 1.0 = OOK (MSF), 0.85–0.95 = AM. */
     val amplitudeDeviation: Double = 0.85,
-    /** Label for this second's encoded field (e.g., "Year", "Min"). */
     val fieldLabel: String = ""
 )
 
-/**
- * Describes a labelled field range in the 60-second frame.
- */
 data class FieldRange(
     val label: String,
     val startSecond: Int,
@@ -100,11 +79,6 @@ data class FieldRange(
 
 // ── Main card composable ────────────────────────────────────────────────
 
-/**
- * Material 3 card displaying signal encoding visuals:
- *  1. Current-second amplitude envelope waveform (top)
- *  2. Full-minute timeline bar chart with field labels (bottom)
- */
 @Composable
 fun SignalVisualizerCard(
     antennaType: AntennaType,
@@ -119,18 +93,16 @@ fun SignalVisualizerCard(
     val fieldRanges = remember(antennaType) { getFieldRanges(antennaType) }
     val currentInfo = secondInfos.getOrNull(currentSecond) ?: secondInfos[0]
 
-    // Animated progress within the current second (0..1)
     var progress by remember { mutableFloatStateOf(0f) }
     var animSecond by remember { mutableIntStateOf(currentSecond) }
 
-    // Sync animation to real clock
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             while (true) {
                 val now = System.currentTimeMillis()
                 progress = (now % 1000L) / 1000f
                 animSecond = currentSecond
-                delay(16L) // ~60 fps
+                delay(16L)
             }
         } else {
             progress = 0f
@@ -138,6 +110,18 @@ fun SignalVisualizerCard(
     }
 
     val textMeasurer = rememberTextMeasurer()
+
+    // Pulse animation for current second indicator
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
 
     ElevatedCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -154,9 +138,10 @@ fun SignalVisualizerCard(
             EnvelopeWaveform(
                 secondInfo = currentInfo,
                 progress = if (isPlaying) progress else -1f,
+                textMeasurer = textMeasurer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(110.dp)
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -184,10 +169,11 @@ fun SignalVisualizerCard(
                 fieldRanges = fieldRanges,
                 currentSecond = currentSecond,
                 isPlaying = isPlaying,
+                pulseAlpha = if (isPlaying) pulseAlpha else 0.8f,
                 textMeasurer = textMeasurer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
+                    .height(190.dp)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -200,14 +186,11 @@ fun SignalVisualizerCard(
 
 // ── Envelope waveform ───────────────────────────────────────────────────
 
-/**
- * Canvas showing the amplitude envelope for one second.
- * Draws a filled area chart with smoothed transitions.
- */
 @Composable
 private fun EnvelopeWaveform(
     secondInfo: SecondInfo,
     progress: Float,
+    textMeasurer: TextMeasurer,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -215,8 +198,8 @@ private fun EnvelopeWaveform(
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val outlineColor = MaterialTheme.colorScheme.outlineVariant
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // Pre-compute envelope points
     val envelope = remember(secondInfo) {
         computeEnvelope(secondInfo, NUM_ENVELOPE_POINTS)
     }
@@ -224,8 +207,10 @@ private fun EnvelopeWaveform(
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
+        val leftPad = 28f   // space for amplitude labels
         val topPad = 4f
-        val bottomPad = 4f
+        val bottomPad = 18f // space for time axis labels
+        val drawW = w - leftPad
         val drawH = h - topPad - bottomPad
 
         // Background
@@ -234,33 +219,105 @@ private fun EnvelopeWaveform(
             cornerRadius = CornerRadius(8f, 8f)
         )
 
+        // Modulation zone highlight
+        if (secondInfo.offDurationMs > 0) {
+            val fraction = secondInfo.offDurationMs / 1000f
+            if (secondInfo.reducedFirst) {
+                // Highlight reduced zone at start
+                drawRect(
+                    color = primaryColor.copy(alpha = 0.06f),
+                    topLeft = Offset(leftPad, topPad),
+                    size = Size(drawW * fraction, drawH)
+                )
+            } else {
+                // Highlight reduced zone at end (JJY)
+                drawRect(
+                    color = primaryColor.copy(alpha = 0.06f),
+                    topLeft = Offset(leftPad + drawW * fraction, topPad),
+                    size = Size(drawW * (1f - fraction), drawH)
+                )
+            }
+
+            // Transition boundary dashed line
+            val transX = leftPad + drawW * fraction
+            drawLine(
+                color = outlineColor,
+                start = Offset(transX, topPad),
+                end = Offset(transX, topPad + drawH),
+                strokeWidth = 1f,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f))
+            )
+        }
+
         // Grid lines at 0%, 50%, 100% amplitude
         for (level in listOf(0f, 0.5f, 1f)) {
             val y = topPad + drawH * (1f - level)
             drawLine(
                 color = outlineColor,
-                start = Offset(0f, y),
+                start = Offset(leftPad, y),
                 end = Offset(w, y),
                 strokeWidth = if (level == 0f) 1.5f else 0.5f
             )
         }
 
+        // Amplitude axis labels (0%, 100%)
+        for ((level, label) in listOf(0f to "0%", 1f to "100%")) {
+            val y = topPad + drawH * (1f - level)
+            val measured = textMeasurer.measure(
+                label,
+                style = TextStyle(fontSize = 8.sp, textAlign = TextAlign.End)
+            )
+            drawText(
+                measured,
+                color = onSurfaceVariantColor,
+                topLeft = Offset(
+                    leftPad - measured.size.width - 3f,
+                    y - measured.size.height / 2f
+                )
+            )
+        }
+
+        // Time axis labels
+        for (ms in listOf(0, 250, 500, 750, 1000)) {
+            val x = leftPad + drawW * (ms / 1000f)
+            val label = if (ms == 1000) "1s" else "${ms}ms"
+            val measured = textMeasurer.measure(
+                label,
+                style = TextStyle(fontSize = 7.sp, textAlign = TextAlign.Center)
+            )
+            drawText(
+                measured,
+                color = onSurfaceVariantColor,
+                topLeft = Offset(
+                    x - measured.size.width / 2f,
+                    topPad + drawH + 3f
+                )
+            )
+            // Small tick mark
+            drawLine(
+                color = outlineColor,
+                start = Offset(x, topPad + drawH),
+                end = Offset(x, topPad + drawH + 2f),
+                strokeWidth = 0.5f
+            )
+        }
+
         // Draw envelope as filled area
         val filledPath = Path().apply {
-            moveTo(0f, topPad + drawH)
+            moveTo(leftPad, topPad + drawH)
             for (i in envelope.indices) {
-                val x = i * w / (envelope.size - 1)
+                val x = leftPad + i * drawW / (envelope.size - 1)
                 val y = topPad + drawH * (1f - envelope[i])
                 lineTo(x, y)
             }
-            lineTo(w, topPad + drawH)
+            lineTo(leftPad + drawW, topPad + drawH)
             close()
         }
 
         val gradientBrush = Brush.verticalGradient(
             colors = listOf(
-                primaryColor.copy(alpha = 0.6f),
-                primaryContainerColor.copy(alpha = 0.2f)
+                primaryColor.copy(alpha = 0.5f),
+                primaryContainerColor.copy(alpha = 0.15f)
             ),
             startY = topPad,
             endY = topPad + drawH
@@ -270,31 +327,27 @@ private fun EnvelopeWaveform(
         // Draw envelope line
         val linePath = Path().apply {
             for (i in envelope.indices) {
-                val x = i * w / (envelope.size - 1)
+                val x = leftPad + i * drawW / (envelope.size - 1)
                 val y = topPad + drawH * (1f - envelope[i])
                 if (i == 0) moveTo(x, y) else lineTo(x, y)
             }
         }
-        drawPath(linePath, color = primaryColor, style = Stroke(width = 2f))
+        drawPath(linePath, color = primaryColor, style = Stroke(width = 2.5f))
 
         // Playback cursor
         if (progress in 0f..1f) {
-            val cursorX = progress * w
+            val cursorX = leftPad + progress * drawW
             drawLine(
                 color = tertiaryColor,
                 start = Offset(cursorX, topPad),
                 end = Offset(cursorX, topPad + drawH),
                 strokeWidth = 2f
             )
+            val envIdx = (progress * (envelope.size - 1)).roundToInt().coerceIn(envelope.indices)
             drawCircle(
                 color = tertiaryColor,
-                radius = 4f,
-                center = Offset(
-                    cursorX,
-                    topPad + drawH * (1f - envelope[
-                        (progress * (envelope.size - 1)).roundToInt().coerceIn(envelope.indices)
-                    ])
-                )
+                radius = 5f,
+                center = Offset(cursorX, topPad + drawH * (1f - envelope[envIdx]))
             )
         }
     }
@@ -302,16 +355,13 @@ private fun EnvelopeWaveform(
 
 // ── Minute timeline bar chart ───────────────────────────────────────────
 
-/**
- * Draws 60 vertical bars representing the modulation pattern for each second.
- * Bars are coloured by encoded field and the current second is highlighted.
- */
 @Composable
 private fun MinuteTimeline(
     secondInfos: List<SecondInfo>,
     fieldRanges: List<FieldRange>,
     currentSecond: Int,
     isPlaying: Boolean,
+    pulseAlpha: Float,
     textMeasurer: TextMeasurer,
     modifier: Modifier = Modifier
 ) {
@@ -321,7 +371,6 @@ private fun MinuteTimeline(
     val outlineColor = MaterialTheme.colorScheme.outlineVariant
     val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // Field palette (8 distinct pastel-ish M3-friendly colours)
     val fieldColors = listOf(
         MaterialTheme.colorScheme.primary,
         MaterialTheme.colorScheme.secondary,
@@ -340,8 +389,8 @@ private fun MinuteTimeline(
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val labelAreaH = 28f          // space for labels at bottom
-        val numberAreaH = 16f         // space for second numbers at top
+        val labelAreaH = 34f
+        val numberAreaH = 18f
         val barAreaH = h - labelAreaH - numberAreaH
         val barGap = 1.5f
         val barWidth = (w - barGap * 59) / 60f
@@ -353,16 +402,37 @@ private fun MinuteTimeline(
             cornerRadius = CornerRadius(8f, 8f)
         )
 
-        // Draw bars
+        // Draw field group background bands (alternating)
+        for ((idx, range) in fieldRanges.withIndex()) {
+            if (idx % 2 == 1) {
+                val xStart = range.startSecond * (barWidth + barGap)
+                val xEnd = (range.endSecondExclusive - 1) * (barWidth + barGap) + barWidth
+                drawRect(
+                    color = outlineColor.copy(alpha = 0.12f),
+                    topLeft = Offset(xStart, numberAreaH),
+                    size = Size(xEnd - xStart, barAreaH)
+                )
+            }
+        }
+
+        // Baseline
+        drawLine(
+            color = outlineColor,
+            start = Offset(0f, numberAreaH + barAreaH),
+            end = Offset(w, numberAreaH + barAreaH),
+            strokeWidth = 1f
+        )
+
+        // Draw bars (variable height, normalized to max modulation)
         for (i in 0 until 60) {
             val info = secondInfos[i]
             val x = i * (barWidth + barGap)
-            val barFraction = if (info.offDurationMs < 0) 0.05f
-            else (info.offDurationMs / maxOff).coerceIn(0.05f, 1f)
+
+            val barFraction = if (info.offDurationMs < 0) 0.08f
+            else (info.offDurationMs / maxOff).coerceIn(0.08f, 1f)
             val barH = barAreaH * barFraction
             val barY = numberAreaH + barAreaH - barH
 
-            // Determine colour from field range
             val fieldIdx = fieldRanges.indexOfFirst {
                 i >= it.startSecond && i < it.endSecondExclusive
             }
@@ -379,20 +449,20 @@ private fun MinuteTimeline(
                 cornerRadius = CornerRadius(cornerR, cornerR)
             )
 
-            // Highlight current second
+            // Highlight current second with pulsing border
             if (i == currentSecond && isPlaying) {
                 drawRoundRect(
-                    color = tertiaryColor,
+                    color = tertiaryColor.copy(alpha = pulseAlpha),
                     topLeft = Offset(x - 1f, barY - 1f),
                     size = Size(barWidth + 2f, barH + 2f),
                     cornerRadius = CornerRadius(cornerR + 1f, cornerR + 1f),
-                    style = Stroke(width = 2f)
+                    style = Stroke(width = 2.5f)
                 )
             }
         }
 
-        // Draw second numbers every 10 seconds
-        for (s in listOf(0, 10, 20, 30, 40, 50, 59)) {
+        // Draw second numbers every 5 seconds
+        for (s in (0..55 step 5) + listOf(59)) {
             val x = s * (barWidth + barGap)
             val label = s.toString()
             val measured = textMeasurer.measure(
@@ -417,20 +487,19 @@ private fun MinuteTimeline(
             val xCenter = (xStart + xEnd) / 2
             val fieldColor = fieldColors[range.colorIndex % fieldColors.size]
 
-            // Small line under the bars
+            // Colored line under the bars
             drawLine(
                 color = fieldColor,
                 start = Offset(xStart, numberAreaH + barAreaH + 3f),
                 end = Offset(xEnd, numberAreaH + barAreaH + 3f),
-                strokeWidth = 2f
+                strokeWidth = 2.5f
             )
 
             val measured = textMeasurer.measure(
                 range.label,
-                style = TextStyle(fontSize = 7.sp, textAlign = TextAlign.Center)
+                style = TextStyle(fontSize = 8.sp, textAlign = TextAlign.Center)
             )
 
-            // Clip label to available space
             val availableWidth = xEnd - xStart
             if (measured.size.width <= availableWidth + 8) {
                 drawText(
@@ -438,7 +507,7 @@ private fun MinuteTimeline(
                     color = onSurfaceVariantColor,
                     topLeft = Offset(
                         xCenter - measured.size.width / 2,
-                        numberAreaH + barAreaH + 6f
+                        numberAreaH + barAreaH + 7f
                     )
                 )
             }
@@ -450,6 +519,7 @@ private fun MinuteTimeline(
 
 @Composable
 private fun FieldLegend(antennaType: AntennaType) {
+    val primaryColor = MaterialTheme.colorScheme.primary
     val markerColor = MaterialTheme.colorScheme.inversePrimary
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
 
@@ -526,14 +596,9 @@ private fun LegendItem(
 
 private const val NUM_ENVELOPE_POINTS = 500
 
-/**
- * Compute the amplitude envelope (0..1) for one second.
- * Mirrors the smoothedAmplitude() logic from TimeSignalRenderer.
- */
 private fun computeEnvelope(info: SecondInfo, numPoints: Int): FloatArray {
     val envelope = FloatArray(numPoints)
     if (info.offDurationMs < 0) {
-        // No modulation — full carrier
         envelope.fill(1f)
         return envelope
     }
@@ -546,7 +611,6 @@ private fun computeEnvelope(info: SecondInfo, numPoints: Int): FloatArray {
 
     for (i in 0 until numPoints) {
         envelope[i] = if (info.reducedFirst) {
-            // Pattern: reduced → full (DCF77, WWVB, BPC, MSF)
             when {
                 i < rampSamples -> {
                     val t = i.toDouble() / rampSamples
@@ -562,7 +626,6 @@ private fun computeEnvelope(info: SecondInfo, numPoints: Int): FloatArray {
                 else -> 1f
             }
         } else {
-            // Pattern: full → reduced (JJY)
             when {
                 i < rampSamples -> {
                     val t = i.toDouble() / rampSamples
@@ -584,9 +647,6 @@ private fun computeEnvelope(info: SecondInfo, numPoints: Int): FloatArray {
 
 // ── Per-protocol second computation ─────────────────────────────────────
 
-/**
- * Compute SecondInfo for all 60 seconds based on the antenna and encoded time.
- */
 private fun computeAllSeconds(
     antennaType: AntennaType,
     time: ZonedDateTime
@@ -609,7 +669,7 @@ private fun computeDcf77Seconds(time: ZonedDateTime): List<SecondInfo> {
     return List(60) { s ->
         val bitState = ((data ushr s) and 1L) != 0L
         val offMs = when {
-            s == 59 -> -1  // No modulation (minute marker gap)
+            s == 59 -> -1
             bitState -> 200
             else -> 100
         }
@@ -631,8 +691,8 @@ private fun computeMsfSeconds(time: ZonedDateTime): List<SecondInfo> {
     return List(60) { s ->
         val bitState = ((data ushr s) and 1L) != 0L
         val offMs = when {
-            s == 0 -> 500  // Minute marker
-            s in 53..58 -> if (bitState) 300 else 200  // Secondary marker +100ms
+            s == 0 -> 500
+            s in 53..58 -> if (bitState) 300 else 200
             else -> if (bitState) 200 else 100
         }
         SecondInfo(
@@ -640,7 +700,7 @@ private fun computeMsfSeconds(time: ZonedDateTime): List<SecondInfo> {
             offDurationMs = offMs,
             isMarker = s == 0,
             reducedFirst = true,
-            amplitudeDeviation = 1.0,  // OOK
+            amplitudeDeviation = 1.0,
             fieldLabel = ""
         )
     }
@@ -676,7 +736,6 @@ private fun computeJjySeconds(time: ZonedDateTime): List<SecondInfo> {
     return List(60) { s ->
         val bitState = ((data ushr s) and 1L) != 0L
         val isPositionMarker = s == 0 || s % 10 == 9
-        // JJY: marker = 200ms full then reduced; bit1 = 500ms; bit0 = 800ms
         val offMs = when {
             isPositionMarker -> 200
             bitState -> 500
@@ -686,7 +745,7 @@ private fun computeJjySeconds(time: ZonedDateTime): List<SecondInfo> {
             secondIndex = s,
             offDurationMs = offMs,
             isMarker = isPositionMarker,
-            reducedFirst = false,  // JJY: full → reduced
+            reducedFirst = false,
             amplitudeDeviation = 0.90,
             fieldLabel = ""
         )
@@ -700,7 +759,7 @@ private fun computeBpcSeconds(time: ZonedDateTime): List<SecondInfo> {
     return List(60) { s ->
         val isRefMarker = s % 20 == 0
         val offMs = if (isRefMarker) {
-            -1  // Full power reference marker
+            -1
         } else {
             when (bpc.getBitPair(s)) {
                 0 -> 100
@@ -726,17 +785,17 @@ private fun computeBpcSeconds(time: ZonedDateTime): List<SecondInfo> {
 private fun getFieldRanges(antennaType: AntennaType): List<FieldRange> {
     return when (antennaType) {
         AntennaType.DCF77 -> listOf(
-            FieldRange("M", 0, 1, 0),           // Minute marker (second 0 = always 0)
-            FieldRange("Meteo", 1, 15, 1),       // Civil warning / weather
-            FieldRange("Ctrl", 15, 20, 2),       // Call bit, TZ, leap
-            FieldRange("S", 20, 21, 3),          // Start bit (always 1)
-            FieldRange("Min", 21, 29, 0),        // Minutes + parity
-            FieldRange("Hour", 29, 36, 1),       // Hours + parity
-            FieldRange("Day", 36, 42, 2),        // Day of month
-            FieldRange("DoW", 42, 45, 3),        // Day of week
-            FieldRange("Mon", 45, 50, 4),        // Month
-            FieldRange("Year", 50, 59, 5),       // Year + date parity
-            FieldRange("M", 59, 60, 0)           // Minute marker (no modulation)
+            FieldRange("M", 0, 1, 0),
+            FieldRange("Meteo", 1, 15, 1),
+            FieldRange("Ctrl", 15, 20, 2),
+            FieldRange("S", 20, 21, 3),
+            FieldRange("Min", 21, 29, 0),
+            FieldRange("Hour", 29, 36, 1),
+            FieldRange("Day", 36, 42, 2),
+            FieldRange("DoW", 42, 45, 3),
+            FieldRange("Mon", 45, 50, 4),
+            FieldRange("Year", 50, 59, 5),
+            FieldRange("M", 59, 60, 0)
         )
         AntennaType.MSF -> listOf(
             FieldRange("M", 0, 1, 0),
@@ -747,7 +806,7 @@ private fun getFieldRanges(antennaType: AntennaType): List<FieldRange> {
             FieldRange("DoW", 36, 39, 5),
             FieldRange("Hour", 39, 45, 6),
             FieldRange("Min", 45, 52, 0),
-            FieldRange("P", 53, 59, 7),          // Parity + BST
+            FieldRange("P", 53, 59, 7),
             FieldRange("", 59, 60, 1)
         )
         AntennaType.WWVB -> listOf(
@@ -797,7 +856,7 @@ private fun getFieldRanges(antennaType: AntennaType): List<FieldRange> {
 private fun getDcf77FieldMap(): Map<Int, String> {
     return buildMap {
         put(0, "M")
-        for (i in 1..14) put(i, "W")  // weather
+        for (i in 1..14) put(i, "W")
         put(15, "C")
         for (i in 16..19) put(i, "S")
         put(20, "1")

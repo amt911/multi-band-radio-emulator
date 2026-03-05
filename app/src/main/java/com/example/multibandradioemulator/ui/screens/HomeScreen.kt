@@ -74,6 +74,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    showGraphs: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
@@ -408,15 +409,17 @@ fun HomeScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (showGraphs) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Signal encoding visualizer
-            SignalVisualizerCard(
-                antennaType = selectedAntenna,
-                currentSecond = currentTime.second,
-                isPlaying = isPlaying,
-                time = ZonedDateTime.of(currentTime, ZoneId.systemDefault())
-            )
+                // Signal encoding visualizer
+                SignalVisualizerCard(
+                    antennaType = selectedAntenna,
+                    currentSecond = currentTime.second,
+                    isPlaying = isPlaying,
+                    time = ZonedDateTime.of(currentTime, ZoneId.systemDefault())
+                )
+            }
         }
     }
 }

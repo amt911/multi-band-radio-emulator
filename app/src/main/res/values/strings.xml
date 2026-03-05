@@ -34,4 +34,35 @@
     <string name="minute_overview">Minute overview</string>
     <string name="legend_marker">Marker</string>
     <string name="legend_current">Current</string>
+    <string name="legend_full_carrier">Full carrier</string>
+    <string name="legend_reduced">Reduced</string>
+
+    <!-- Options screen -->
+    <string name="display_section">Display</string>
+    <string name="show_graphs">Show signal graphs</string>
+    <string name="show_graphs_description">Display signal encoding visualization on the home screen</string>
+
+    <!-- Antenna info screen -->
+    <string name="nav_info">Antennas</string>
+    <string name="antenna_info_subtitle">Learn about each time signal protocol</string>
+    <string name="spec_operator">Operator</string>
+    <string name="spec_location">Location</string>
+    <string name="spec_frequency">Frequency</string>
+    <string name="spec_power">Power</string>
+    <string name="spec_timezone">Timezone</string>
+    <string name="spec_coverage">Coverage</string>
+    <string name="spec_modulation">Modulation</string>
+    <string name="spec_encoding_direction">Encoding</string>
+    <string name="spec_encodes_next">Next minute</string>
+    <string name="spec_encodes_current">Current minute</string>
+    <string name="spec_am_deviation">AM deviation</string>
+    <string name="spec_special">Details</string>
+    <string name="spec_bit_values">Bit values</string>
+    <string name="spec_time_code">Time code</string>
+
+    <!-- About section -->
+    <string name="about_section">About</string>
+    <string name="developer_label">Developer</string>
+    <string name="source_code">Source code</string>
+    <string name="view_on_github">View on GitHub</string>
 </resources>
