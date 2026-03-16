@@ -14,6 +14,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.multibandradioemulator.audio.RadioSignalPlayer
 import com.example.multibandradioemulator.navigation.BottomNavItem
 import com.example.multibandradioemulator.ui.screens.AntennaInfoScreen
 import com.example.multibandradioemulator.ui.screens.HomeScreen
@@ -55,8 +57,28 @@ fun MainApp() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     var showGraphs by remember { mutableStateOf(prefs.getBoolean("show_graphs", true)) }
+    var signalBoost by remember {
+        mutableStateOf(prefs.getFloat("signal_boost", RadioSignalPlayer.DEFAULT_GAIN))
+    }
     LaunchedEffect(showGraphs) {
         prefs.edit().putBoolean("show_graphs", showGraphs).apply()
+    }
+    LaunchedEffect(signalBoost) {
+        prefs.edit().putFloat("signal_boost", signalBoost).apply()
+    }
+
+    // Shared player — lives at app level so playback survives navigation
+    val player = remember { RadioSignalPlayer() }
+    var isPlaying by remember { mutableStateOf(false) }
+
+    // Update gain dynamically without restarting playback
+    LaunchedEffect(signalBoost) {
+        player.gain = signalBoost
+    }
+
+    // Release player when the activity leaves composition
+    DisposableEffect(Unit) {
+        onDispose { player.release() }
     }
 
     Scaffold(
@@ -97,7 +119,12 @@ fun MainApp() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Home.route) {
-                HomeScreen(showGraphs = showGraphs)
+                HomeScreen(
+                    player = player,
+                    isPlaying = isPlaying,
+                    onPlayingChanged = { isPlaying = it },
+                    showGraphs = showGraphs
+                )
             }
             composable(BottomNavItem.Info.route) {
                 AntennaInfoScreen()
@@ -105,7 +132,9 @@ fun MainApp() {
             composable(BottomNavItem.Options.route) {
                 OptionsScreen(
                     showGraphs = showGraphs,
-                    onShowGraphsChanged = { showGraphs = it }
+                    onShowGraphsChanged = { showGraphs = it },
+                    signalBoost = signalBoost,
+                    onSignalBoostChanged = { signalBoost = it }
                 )
             }
         }

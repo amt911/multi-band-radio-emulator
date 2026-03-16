@@ -77,8 +77,8 @@ class JjyRecord private constructor(
             data = setBits(data, toBCD(yearWithinCentury).toLong(), 41, 0b11111111L, true)
             data = setBits(data, toBcdPadded5(dayOfWeek).toLong(), 50, 0b111L, true)
 
-            data = setBits(data, if (calcEvenParityOverBits(data, 12, 18)) 0L else 1L, 36, 1L, true)
-            data = setBits(data, if (calcEvenParityOverBits(data, 1, 8)) 0L else 1L, 37, 1L, true)
+            data = setBits(data, if (calcEvenParityOverBits(data, 12, 19)) 1L else 0L, 36, 1L, true)
+            data = setBits(data, if (calcEvenParityOverBits(data, 1, 9)) 1L else 0L, 37, 1L, true)
 
             data = setBits(data, if (leapSecondAtCurrentUtcMonthEnd) 1L else 0L, 53, 1L, true)
             data = setBits(data, if (leapSecondAdded) 1L else 0L, 54, 1L, true)
@@ -97,8 +97,8 @@ class JjyRecord private constructor(
             data = setBits(data, toBcdPadded5(hour).toLong(), 12, 0b1111111L, true)
             data = setBits(data, toBcdPadded5(dayOfYear).toLong(), 22, 0b111111111111L, true)
 
-            data = setBits(data, if (calcEvenParityOverBits(data, 12, 18)) 0L else 1L, 36, 1L, true)
-            data = setBits(data, if (calcEvenParityOverBits(data, 1, 8)) 0L else 1L, 37, 1L, true)
+            data = setBits(data, if (calcEvenParityOverBits(data, 12, 19)) 1L else 0L, 36, 1L, true)
+            data = setBits(data, if (calcEvenParityOverBits(data, 1, 9)) 1L else 0L, 37, 1L, true)
 
             data = setBits(data, toBCD(callSignAnnouncement).toLong(), 40, 0b111111111L, true)
             data = setBits(data, serviceInterruptionScheduled.toLong(), 50, 0b111L, true)

@@ -40,7 +40,6 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -74,13 +73,15 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    player: RadioSignalPlayer,
+    isPlaying: Boolean,
+    onPlayingChanged: (Boolean) -> Unit,
     showGraphs: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
     var selectedAntenna by remember { mutableStateOf(AntennaType.DCF77) }
     var dropdownExpanded by remember { mutableStateOf(false) }
-    var isPlaying by remember { mutableStateOf(false) }
 
     // Custom time state
     var useCustomTime by remember { mutableStateOf(false) }
@@ -93,20 +94,11 @@ fun HomeScreen(
     val datePickerState = rememberDatePickerState()
     val timePickerState = rememberTimePickerState()
 
-    val player = remember { RadioSignalPlayer() }
-
     // Helper to compute the current custom ZonedDateTime (adjusted for elapsed time)
     fun getCurrentCustomZonedTime(): ZonedDateTime? {
         if (!useCustomTime || customBaseTime == null) return null
         val elapsed = System.currentTimeMillis() - customSetAtMillis
         return customBaseTime!!.plus(elapsed, ChronoUnit.MILLIS)
-    }
-
-    // Clean up player when composable leaves composition
-    DisposableEffect(Unit) {
-        onDispose {
-            player.release()
-        }
     }
 
     // Update time every second
@@ -354,13 +346,13 @@ fun HomeScreen(
                                 val wasPlaying = isPlaying
                                 if (wasPlaying) {
                                     player.stop()
-                                    isPlaying = false
+                                    onPlayingChanged(false)
                                 }
                                 selectedAntenna = antenna
                                 dropdownExpanded = false
                                 if (wasPlaying) {
                                     player.start(antenna, getCurrentCustomZonedTime())
-                                    isPlaying = true
+                                    onPlayingChanged(true)
                                 }
                             },
                             contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
@@ -376,10 +368,10 @@ fun HomeScreen(
                 onClick = {
                     if (isPlaying) {
                         player.stop()
-                        isPlaying = false
+                        onPlayingChanged(false)
                     } else {
                         player.start(selectedAntenna, getCurrentCustomZonedTime())
-                        isPlaying = true
+                        onPlayingChanged(true)
                     }
                 },
                 modifier = Modifier.size(72.dp),
@@ -428,6 +420,10 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenPreview() {
     MultiBandRadioEmulatorTheme {
-        HomeScreen()
+        HomeScreen(
+            player = RadioSignalPlayer(),
+            isPlaying = false,
+            onPlayingChanged = {}
+        )
     }
 }

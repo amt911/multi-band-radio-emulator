@@ -42,6 +42,11 @@
     <string name="show_graphs">Show signal graphs</string>
     <string name="show_graphs_description">Display signal encoding visualization on the home screen</string>
 
+    <string name="audio_section">Audio</string>
+    <string name="signal_boost">Signal boost</string>
+    <string name="signal_boost_description">Increase output amplitude to improve reception on some devices</string>
+    <string name="signal_boost_value">%1$sx</string>
+
     <!-- Antenna info screen -->
     <string name="nav_info">Antennas</string>
     <string name="antenna_info_subtitle">Learn about each time signal protocol</string>

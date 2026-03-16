@@ -12,6 +12,7 @@ import com.example.multibandradioemulator.audio.msf.MsfRenderer
 import com.example.multibandradioemulator.audio.wwvb.WwvbRenderer
 import java.time.ZonedDateTime
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 /**
  * Manages real-time audio playback of time signal broadcasts via the device speaker.
@@ -25,11 +26,21 @@ class RadioSignalPlayer {
     private var playbackThread: Thread? = null
     private var audioTrack: AudioTrack? = null
 
+    /** Amplitude gain factor, read by the playback thread each second. Thread-safe. */
+    @Volatile
+    var gain: Float = DEFAULT_GAIN
+
     val playing: Boolean get() = isPlaying.get()
 
     companion object {
         private const val TAG = "RadioSignalPlayer"
         private const val SAMPLE_RATE = 48000
+
+        /** Maximum gain value (= full 16-bit scale). */
+        const val MAX_GAIN = 4.0f
+
+        /** Default gain — 50% of full scale, leaving headroom for boost. */
+        const val DEFAULT_GAIN = 2.0f
     }
 
     private fun getRenderer(antennaType: AntennaType): TimeSignalRenderer {
@@ -46,6 +57,7 @@ class RadioSignalPlayer {
     /**
      * Start playing the time signal for the specified antenna type.
      * Playback will continue until [stop] is called.
+     * Set [gain] property before or during playback to adjust amplitude.
      */
     fun start(antennaType: AntennaType, customTime: ZonedDateTime? = null) {
         if (isPlaying.getAndSet(true)) return // Already playing
@@ -136,6 +148,10 @@ class RadioSignalPlayer {
                         amplitudeDeviation = amplitudeDeviation
                     )
 
+                    // Scale amplitude linearly: gain/MAX_GAIN maps to [0..1]
+                    // so the waveform shape is preserved exactly (no distortion).
+                    applyLinearGain(pcmData, gain)
+
                     // Write PCM data to AudioTrack.  The call blocks when the
                     // internal buffer is full, which naturally paces playback
                     // at real-time speed — no manual sleep needed.
@@ -193,5 +209,27 @@ class RadioSignalPlayer {
      */
     fun release() {
         stop()
+    }
+
+    /**
+     * Scale every 16-bit LE sample by [gain] / [MAX_GAIN].
+     *
+     * Because the renderer outputs at full 16-bit scale, dividing by
+     * MAX_GAIN creates headroom. The user's gain setting then linearly
+     * fills that headroom — at [MAX_GAIN] the output reaches full scale.
+     * The waveform shape is preserved exactly: no clipping, no distortion.
+     */
+    private fun applyLinearGain(pcm: ByteArray, gain: Float) {
+        val scale = gain / MAX_GAIN
+        var i = 0
+        while (i < pcm.size - 1) {
+            val lo = pcm[i].toInt() and 0xFF
+            val hi = pcm[i + 1].toInt()
+            val sample = (hi shl 8) or lo
+            val scaled = (sample * scale).roundToInt()
+            pcm[i] = (scaled and 0xFF).toByte()
+            pcm[i + 1] = ((scaled shr 8) and 0xFF).toByte()
+            i += 2
+        }
     }
 }
