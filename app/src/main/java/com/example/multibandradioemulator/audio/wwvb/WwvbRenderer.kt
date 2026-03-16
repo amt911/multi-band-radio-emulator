@@ -12,7 +12,7 @@ import java.time.ZonedDateTime
  */
 class WwvbRenderer : TimeSignalRenderer {
 
-    override val amplitudeDeviation: Double = 0.90
+    override val amplitudeDeviation: Double = 0.86 // -17 dB → low ≈ 14.1%
     override val carrierFrequencies: List<Int> = listOf(8571, 12000, 15000)
 
     override fun makeTimeSignalRecord(time: ZonedDateTime): TimeSignalRecord {
@@ -25,7 +25,8 @@ class WwvbRenderer : TimeSignalRenderer {
         freq: Double,
         sampleRate: Int,
         signalShape: SignalShape,
-        amplitudeDeviation: Double
+        amplitudeDeviation: Double,
+        sampleOffset: Long
     ): ByteArray {
         val samplesPerMarker = (sampleRate shl 2) / 5  // 800ms
         val samplesPerSetBit = sampleRate / 2           // 500ms
@@ -41,11 +42,10 @@ class WwvbRenderer : TimeSignalRenderer {
         }
 
         val wavBuffer = ByteArray(sampleRate * 2)
-        val baseOffset = secondIndex * sampleRate
 
         for (sample in 0 until sampleRate) {
             val amplitude = smoothedAmplitude(sample, syncPrefixSamples, amplitudeDeviation, sampleRate)
-            val sampleIndex = baseOffset + sample
+            val sampleIndex = sampleOffset + sample
             val pcmValue = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
             wavBuffer[sample * 2] = (pcmValue and 0xFF).toByte()
             wavBuffer[sample * 2 + 1] = ((pcmValue ushr 8) and 0xFF).toByte()

@@ -10,6 +10,8 @@ import com.example.multibandradioemulator.audio.dcf77.Dcf77Renderer
 import com.example.multibandradioemulator.audio.jjy.JjyRenderer
 import com.example.multibandradioemulator.audio.msf.MsfRenderer
 import com.example.multibandradioemulator.audio.wwvb.WwvbRenderer
+import java.time.Instant
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -39,8 +41,8 @@ class RadioSignalPlayer {
         /** Maximum gain value (= full 16-bit scale). */
         const val MAX_GAIN = 4.0f
 
-        /** Default gain — 50% of full scale, leaving headroom for boost. */
-        const val DEFAULT_GAIN = 2.0f
+        /** Default gain — full power for best reception. */
+        const val DEFAULT_GAIN = MAX_GAIN
     }
 
     private fun getRenderer(antennaType: AntennaType): TimeSignalRenderer {
@@ -64,13 +66,17 @@ class RadioSignalPlayer {
 
         val renderer = getRenderer(antennaType)
         val freq = renderer.carrierFrequencies[1].toDouble() // Use middle frequency
-        // Sine wave is the correct choice at these carrier frequencies (12-19 kHz)
-        // because SQUARE/TRIANGLE harmonics exceed the Nyquist limit (24 kHz at 48 kHz
-        // sample rate), producing aliased noise instead of useful harmonics.
-        // The real harmonics at 77.5/60/40/68.5 kHz are generated mechanically by the
-        // speaker's non-linearity, which works best with a clean high-amplitude sine input.
         val signalShape = SignalShape.SIN
         val amplitudeDeviation = renderer.amplitudeDeviation
+
+        // Compute subharmonic and quantization scale (cf. TimeStation's approach).
+        // Quantizing the sine wave to sampleRate/subharmonic levels creates a
+        // "staircase" waveform whose harmonics land exactly at integer multiples
+        // of the carrier frequency — including the real broadcast frequency
+        // (e.g. 5th harmonic of 15500 Hz = 77500 Hz for DCF77).
+        val targetHz = (antennaType.frequencyKHz * 1000).toInt()
+        val subharmonic = (targetHz.toDouble() / freq).roundToInt()
+        val quantScale = SAMPLE_RATE / subharmonic
 
         val bufferSize = maxOf(
             AudioTrack.getMinBufferSize(
@@ -78,7 +84,7 @@ class RadioSignalPlayer {
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
             ),
-            SAMPLE_RATE * 2 // At least 1 second of buffer
+            SAMPLE_RATE * 2 / 5 // ~200ms buffer for low output latency
         )
 
         val track = AudioTrack.Builder()
@@ -105,21 +111,33 @@ class RadioSignalPlayer {
             Log.i(TAG, "Playback started: ${antennaType.displayName}, freq=$freq Hz")
 
             try {
-                // Wait for the next second boundary so the AM modulation
-                // pattern aligns with wall-clock seconds.
+                // Estimate AudioTrack output latency from buffer size.
+                // bufferSize is in bytes; 2 bytes per sample at 16-bit mono.
+                val bufferLatencyMs = bufferSize.toLong() * 1000 / (SAMPLE_RATE * 2)
+
+                // Wait for the next second boundary MINUS the buffer latency
+                // so the AM modulation pattern reaches the speaker exactly
+                // at the wall-clock second boundary.
                 val nowMs = System.currentTimeMillis()
-                val waitMs = 1000L - (nowMs % 1000L)
+                val nextSecondMs = nowMs + (1000L - (nowMs % 1000L))
+                val waitMs = maxOf(0L, nextSecondMs - bufferLatencyMs - nowMs)
                 Thread.sleep(waitMs)
 
                 track.play()
 
-                // Use a render-time cursor that advances by exactly 1 second
-                // per loop iteration.  This prevents the old bug where
-                // re-reading the wall clock after a blocking write() caused
-                // duplicate or skipped seconds.
-                var renderTime = customTime ?: ZonedDateTime.now()
+                // renderTime represents the wall-clock time at which audio
+                // will be heard (≈ next second boundary after buffer latency).
+                var renderTime = customTime ?: ZonedDateTime.ofInstant(
+                    Instant.ofEpochMilli(nextSecondMs),
+                    ZoneId.systemDefault()
+                )
                 var currentRecord: TimeSignalRecord? = null
                 var currentRecordMinute = -1
+
+                // Running sample counter for phase-continuous carrier generation.
+                // Monotonically increases — never resets — so the sine wave has
+                // no phase discontinuity at minute boundaries.
+                var sampleOffset = 0L
 
                 while (isPlaying.get() && !Thread.currentThread().isInterrupted) {
                     val renderSecond = renderTime.second
@@ -145,12 +163,18 @@ class RadioSignalPlayer {
                         freq = freq,
                         sampleRate = SAMPLE_RATE,
                         signalShape = signalShape,
-                        amplitudeDeviation = amplitudeDeviation
+                        amplitudeDeviation = amplitudeDeviation,
+                        sampleOffset = sampleOffset
                     )
 
+                    // Quantize to boost harmonics at target radio frequency
+                    applyQuantization(pcmData, quantScale)
+
                     // Scale amplitude linearly: gain/MAX_GAIN maps to [0..1]
-                    // so the waveform shape is preserved exactly (no distortion).
-                    applyLinearGain(pcmData, gain)
+                    val currentGain = gain
+                    if (currentGain < MAX_GAIN) {
+                        applyLinearGain(pcmData, currentGain)
+                    }
 
                     // Write PCM data to AudioTrack.  The call blocks when the
                     // internal buffer is full, which naturally paces playback
@@ -167,7 +191,8 @@ class RadioSignalPlayer {
                         remaining -= written
                     }
 
-                    // Advance render cursor to the next second
+                    // Advance render cursor and sample offset
+                    sampleOffset += SAMPLE_RATE
                     renderTime = renderTime.plusSeconds(1)
                 }
             } catch (e: InterruptedException) {
@@ -209,6 +234,28 @@ class RadioSignalPlayer {
      */
     fun release() {
         stop()
+    }
+
+    /**
+     * Reduce the effective resolution of each 16-bit LE sample to [quantScale]
+     * discrete levels. This deliberately introduces staircase distortion whose
+     * harmonics fall at exact integer multiples of the carrier frequency,
+     * boosting the component at the real broadcast frequency (e.g. 77.5 kHz
+     * for DCF77). Technique from TimeStation (cf. jjy.luxferre.top).
+     */
+    private fun applyQuantization(pcm: ByteArray, quantScale: Int) {
+        val maxVal = Short.MAX_VALUE.toDouble()
+        var i = 0
+        while (i < pcm.size - 1) {
+            val lo = pcm[i].toInt() and 0xFF
+            val hi = pcm[i + 1].toInt()
+            val sample = ((hi shl 8) or lo).toDouble() / maxVal
+            val quantized = (sample * quantScale).toInt().toDouble() / quantScale
+            val pcmValue = (quantized * maxVal).roundToInt()
+            pcm[i] = (pcmValue and 0xFF).toByte()
+            pcm[i + 1] = ((pcmValue shr 8) and 0xFF).toByte()
+            i += 2
+        }
     }
 
     /**

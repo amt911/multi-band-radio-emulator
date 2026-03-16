@@ -16,7 +16,7 @@ class Dcf77Renderer : TimeSignalRenderer {
     override val carrierFrequencies: List<Int> = listOf(12916, 15500, 19375)
 
     override fun makeTimeSignalRecord(time: ZonedDateTime): TimeSignalRecord {
-        return Dcf77Record(time)
+        return Dcf77Record.create(time)
     }
 
     override fun renderSecondPcm(
@@ -25,7 +25,8 @@ class Dcf77Renderer : TimeSignalRenderer {
         freq: Double,
         sampleRate: Int,
         signalShape: SignalShape,
-        amplitudeDeviation: Double
+        amplitudeDeviation: Double,
+        sampleOffset: Long
     ): ByteArray {
         val samplesPerSet = sampleRate / 5      // 200ms for bit=1
         val samplesPerReset = sampleRate / 10   // 100ms for bit=0
@@ -40,11 +41,10 @@ class Dcf77Renderer : TimeSignalRenderer {
         }
 
         val wavBuffer = ByteArray(sampleRate * 2)
-        val baseOffset = secondIndex * sampleRate
 
         for (sample in 0 until sampleRate) {
             val amplitude = smoothedAmplitude(sample, syncPrefixSamples, amplitudeDeviation, sampleRate)
-            val sampleIndex = baseOffset + sample
+            val sampleIndex = sampleOffset + sample
             val pcmValue = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
             wavBuffer[sample * 2] = (pcmValue and 0xFF).toByte()
             wavBuffer[sample * 2 + 1] = ((pcmValue ushr 8) and 0xFF).toByte()

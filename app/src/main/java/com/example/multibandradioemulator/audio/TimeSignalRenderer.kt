@@ -32,6 +32,9 @@ interface TimeSignalRenderer {
      * @param sampleRate Audio sample rate in Hz
      * @param signalShape Waveform shape
      * @param amplitudeDeviation AM modulation depth
+     * @param sampleOffset Running sample offset for phase-continuous carrier generation.
+     *                     Monotonically increases across seconds and minutes to avoid
+     *                     phase discontinuities that create broadband clicks.
      * @return Raw PCM byte array (sampleRate * 2 bytes)
      */
     fun renderSecondPcm(
@@ -40,12 +43,17 @@ interface TimeSignalRenderer {
         freq: Double,
         sampleRate: Int,
         signalShape: SignalShape,
-        amplitudeDeviation: Double
+        amplitudeDeviation: Double,
+        sampleOffset: Long = secondIndex.toLong() * sampleRate
     ): ByteArray
 
     /**
-     * Calculate smoothed AM envelope amplitude using cosine ramps to avoid
-     * audible clicks at modulation transitions.
+     * Calculate the AM envelope amplitude for the current sample.
+     *
+     * Uses instant step transitions (no ramp) by default, matching TimeStation's
+     * behavior. Sharp edges produce broadband harmonic energy that strengthens
+     * reception. A cosine ramp can be enabled via [rampMs] if softer audio is
+     * preferred (at the cost of weaker harmonic content).
      *
      * @param sample Current sample index within the second
      * @param syncPrefixSamples Number of samples for the sync prefix (-1 = no modulation)
@@ -53,7 +61,7 @@ interface TimeSignalRenderer {
      * @param sampleRate Audio sample rate in Hz
      * @param reducedFirst If true, second starts at reduced amplitude then rises (DCF77/WWVB/BPC).
      *                     If false, second starts at full amplitude then drops (JJY).
-     * @param rampMs Duration of the cosine ramp in milliseconds
+     * @param rampMs Duration of the cosine ramp in milliseconds (0 = instant step)
      */
     fun smoothedAmplitude(
         sample: Int,
@@ -61,7 +69,7 @@ interface TimeSignalRenderer {
         amplitudeDeviation: Double,
         sampleRate: Int,
         reducedFirst: Boolean = true,
-        rampMs: Double = 2.0
+        rampMs: Double = 0.0
     ): Double {
         if (syncPrefixSamples < 0) return 1.0
 
@@ -71,14 +79,14 @@ interface TimeSignalRenderer {
         return if (reducedFirst) {
             // Pattern: reduced → full (DCF77, WWVB, BPC)
             when {
-                sample < rampSamples -> {
+                rampSamples > 0 && sample < rampSamples -> {
                     // Ramp down from full (end of previous second) to reduced
                     val t = sample.toDouble() / rampSamples
                     val s = (1.0 - cos(PI * t)) / 2.0
                     1.0 - s * amplitudeDeviation
                 }
                 sample < syncPrefixSamples -> reducedLevel
-                sample < syncPrefixSamples + rampSamples -> {
+                rampSamples > 0 && sample < syncPrefixSamples + rampSamples -> {
                     // Ramp up from reduced to full
                     val t = (sample - syncPrefixSamples).toDouble() / rampSamples
                     val s = (1.0 - cos(PI * t)) / 2.0
@@ -89,14 +97,14 @@ interface TimeSignalRenderer {
         } else {
             // Pattern: full → reduced (JJY)
             when {
-                sample < rampSamples -> {
+                rampSamples > 0 && sample < rampSamples -> {
                     // Ramp up from reduced (end of previous second) to full
                     val t = sample.toDouble() / rampSamples
                     val s = (1.0 - cos(PI * t)) / 2.0
                     reducedLevel + s * amplitudeDeviation
                 }
                 sample < syncPrefixSamples -> 1.0
-                sample < syncPrefixSamples + rampSamples -> {
+                rampSamples > 0 && sample < syncPrefixSamples + rampSamples -> {
                     // Ramp down from full to reduced
                     val t = (sample - syncPrefixSamples).toDouble() / rampSamples
                     val s = (1.0 - cos(PI * t)) / 2.0

@@ -15,7 +15,7 @@ import java.time.ZonedDateTime
  */
 class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
 
-    override val amplitudeDeviation: Double = 0.90
+    override val amplitudeDeviation: Double = 0.68 // -10 dB → low ≈ 31.6%
     override val carrierFrequencies: List<Int> = if (is60kHz)
         listOf(8571, 12000, 15000)  // 60 kHz sub-harmonics
     else
@@ -31,7 +31,8 @@ class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
         freq: Double,
         sampleRate: Int,
         signalShape: SignalShape,
-        amplitudeDeviation: Double
+        amplitudeDeviation: Double,
+        sampleOffset: Long
     ): ByteArray {
         val samplesPerMarker = sampleRate / 5       // 200ms
         val samplesPerSet = sampleRate / 2           // 500ms
@@ -48,23 +49,22 @@ class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
         }
 
         val wavBuffer = ByteArray(sampleRate * 2)
-        val baseOffset = secondIndex * sampleRate
 
         // JJY call sign Morse code for seconds 40-48 during call sign announcement minutes
         if (jjyRecord.isCallSignAnnouncement && secondIndex in 40..48) {
             val totalSignalSamples = 9 * sampleRate
             val perBit = MORSE_JJY_MSB0.length.toDouble() / totalSignalSamples
-            var sampleOffset = (secondIndex - 40) * sampleRate
+            var morseOffset = (secondIndex - 40) * sampleRate
 
             for (sample in 0 until sampleRate) {
                 val morseBitIndex =
-                    minOf(MORSE_JJY_MSB0.length - 1, Math.round(perBit * sampleOffset).toInt())
+                    minOf(MORSE_JJY_MSB0.length - 1, Math.round(perBit * morseOffset).toInt())
                 val amplitude = if (MORSE_JJY_MSB0[morseBitIndex] == '0') 0.0 else 1.0
-                val sampleIndex = baseOffset + sample
+                val sampleIndex = sampleOffset + sample
                 val volume = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
                 wavBuffer[sample * 2] = (volume and 0xFF).toByte()
                 wavBuffer[sample * 2 + 1] = ((volume ushr 8) and 0xFF).toByte()
-                sampleOffset++
+                morseOffset++
             }
         } else {
             // Normal AM modulation (JJY inverts: full power first, then reduced)
@@ -73,7 +73,7 @@ class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
                     sample, syncPrefixSamples, amplitudeDeviation, sampleRate,
                     reducedFirst = false
                 )
-                val sampleIndex = baseOffset + sample
+                val sampleIndex = sampleOffset + sample
                 val pcmValue = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
                 wavBuffer[sample * 2] = (pcmValue and 0xFF).toByte()
                 wavBuffer[sample * 2 + 1] = ((pcmValue ushr 8) and 0xFF).toByte()

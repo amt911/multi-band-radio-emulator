@@ -12,7 +12,7 @@ import java.time.ZonedDateTime
  */
 class BpcRenderer : TimeSignalRenderer {
 
-    override val amplitudeDeviation: Double = 0.95
+    override val amplitudeDeviation: Double = 0.68 // -10 dB → low ≈ 31.6%
     override val carrierFrequencies: List<Int> = listOf(11416, 13700, 17125)
 
     override fun makeTimeSignalRecord(time: ZonedDateTime): TimeSignalRecord {
@@ -25,7 +25,8 @@ class BpcRenderer : TimeSignalRenderer {
         freq: Double,
         sampleRate: Int,
         signalShape: SignalShape,
-        amplitudeDeviation: Double
+        amplitudeDeviation: Double,
+        sampleOffset: Long
     ): ByteArray {
         val samples00 = sampleRate / 10          // 100ms
         val samples01 = sampleRate / 5           // 200ms
@@ -48,11 +49,10 @@ class BpcRenderer : TimeSignalRenderer {
         }
 
         val wavBuffer = ByteArray(sampleRate * 2)
-        val baseOffset = secondIndex * sampleRate
 
         for (sample in 0 until sampleRate) {
             val amplitude = smoothedAmplitude(sample, syncPrefixSamples, amplitudeDeviation, sampleRate)
-            val sampleIndex = baseOffset + sample
+            val sampleIndex = sampleOffset + sample
             val pcmValue = signalShape.calculate(sampleIndex, freq, amplitude, sampleRate)
             wavBuffer[sample * 2] = (pcmValue and 0xFF).toByte()
             wavBuffer[sample * 2 + 1] = ((pcmValue ushr 8) and 0xFF).toByte()

@@ -662,7 +662,7 @@ private fun computeAllSeconds(
 
 private fun computeDcf77Seconds(time: ZonedDateTime): List<SecondInfo> {
     val recordTime = time.plusMinutes(1).withSecond(0).withNano(0)
-    val record = Dcf77Record(recordTime)
+    val record = Dcf77Record.create(recordTime)
     val data = record.getBitString(false)
     val fields = getDcf77FieldMap()
 
