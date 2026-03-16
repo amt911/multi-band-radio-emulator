@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.example.multibandradioemulator.R
 import com.example.multibandradioemulator.audio.RadioSignalPlayer
 import com.example.multibandradioemulator.model.AntennaType
+import com.example.multibandradioemulator.ui.components.SignalVisualizerCard
 import com.example.multibandradioemulator.ui.theme.MultiBandRadioEmulatorTheme
 import kotlinx.coroutines.delay
 import java.time.Instant
@@ -73,6 +74,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    showGraphs: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
@@ -210,7 +212,7 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
             // Time display
             Text(
@@ -406,6 +408,18 @@ fun HomeScreen(
                     MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+
+            if (showGraphs) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Signal encoding visualizer
+                SignalVisualizerCard(
+                    antennaType = selectedAntenna,
+                    currentSecond = currentTime.second,
+                    isPlaying = isPlaying,
+                    time = ZonedDateTime.of(currentTime, ZoneId.systemDefault())
+                )
+            }
         }
     }
 }

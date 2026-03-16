@@ -3,8 +3,10 @@ package com.example.multibandradioemulator.navigation
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.multibandradioemulator.R
@@ -25,6 +27,13 @@ sealed class BottomNavItem(
         unselectedIcon = Icons.Outlined.Home
     )
 
+    data object Info : BottomNavItem(
+        route = "info",
+        labelRes = R.string.nav_info,
+        selectedIcon = Icons.Filled.Info,
+        unselectedIcon = Icons.Outlined.Info
+    )
+
     data object Options : BottomNavItem(
         route = "options",
         labelRes = R.string.nav_options,
@@ -33,6 +42,6 @@ sealed class BottomNavItem(
     )
 
     companion object {
-        val items = listOf(Home, Options)
+        val items = listOf(Home, Info, Options)
     }
 }

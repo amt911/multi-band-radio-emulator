@@ -31,4 +31,39 @@
     <string name="select_time">Seleccionar hora</string>
     <string name="confirm">Aceptar</string>
     <string name="cancel">Cancelar</string>
+    <string name="signal_encoding">Codificación de señal</string>
+    <string name="minute_overview">Vista del minuto</string>
+    <string name="legend_marker">Marcador</string>
+    <string name="legend_current">Actual</string>
+    <string name="legend_full_carrier">Portadora completa</string>
+    <string name="legend_reduced">Reducida</string>
+
+    <!-- Options screen -->
+    <string name="display_section">Pantalla</string>
+    <string name="show_graphs">Mostrar gráficas de señal</string>
+    <string name="show_graphs_description">Mostrar la visualización de codificación de señal en la pantalla principal</string>
+
+    <!-- Antenna info screen -->
+    <string name="nav_info">Antenas</string>
+    <string name="antenna_info_subtitle">Información sobre cada protocolo de señal horaria</string>
+    <string name="spec_operator">Operador</string>
+    <string name="spec_location">Ubicación</string>
+    <string name="spec_frequency">Frecuencia</string>
+    <string name="spec_power">Potencia</string>
+    <string name="spec_timezone">Zona horaria</string>
+    <string name="spec_coverage">Cobertura</string>
+    <string name="spec_modulation">Modulación</string>
+    <string name="spec_encoding_direction">Codificación</string>
+    <string name="spec_encodes_next">Minuto siguiente</string>
+    <string name="spec_encodes_current">Minuto actual</string>
+    <string name="spec_am_deviation">Desviación AM</string>
+    <string name="spec_special">Detalles</string>
+    <string name="spec_bit_values">Valores de bit</string>
+    <string name="spec_time_code">C\u00f3digo temporal</string>
+
+    <!-- About section -->
+    <string name="about_section">Acerca de</string>
+    <string name="developer_label">Desarrollador</string>
+    <string name="source_code">C\u00f3digo fuente</string>
+    <string name="view_on_github">Ver en GitHub</string>
 </resources>
