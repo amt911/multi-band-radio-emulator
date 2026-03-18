@@ -18,9 +18,9 @@ import java.time.ZonedDateTime
  *  - Seconds 1–52  (data):      bit=0 → 100 ms off, bit=1 → 200 ms off
  *  - Seconds 53–58 (secondary minute marker): +100 ms extra
  *      → bit=0 → 200 ms off, bit=1 → 300 ms off
- *  - Second 59: 100 ms off (base carrier-off, no data)
- *
- * Every second of the MSF signal has at least 100 ms of carrier-off.
+ *  - Second 59: NO carrier interruption (full carrier on).
+ *      The uninterrupted carrier before second 0's 500 ms gap lets
+ *      receivers reliably identify the minute boundary.
  */
 class MsfRenderer : TimeSignalRenderer {
 
@@ -45,21 +45,23 @@ class MsfRenderer : TimeSignalRenderer {
         val data = msfRecord.msfBits
         val bitState = ((data ushr secondIndex) and 1L) != 0L
 
-        // Calculate carrier-off duration in milliseconds
-        val offDurationMs = when {
-            secondIndex == 0 -> 500  // Minute marker
+        // Calculate carrier-off duration in samples.
+        // Per NPL spec, second 59 has NO carrier interruption — the
+        // continuous carrier before the 500 ms minute marker at second 0
+        // is what lets receivers identify the minute boundary.
+        val syncPrefixSamples = when {
+            secondIndex == 0 -> sampleRate / 2             // 500 ms (minute marker)
+            secondIndex == 59 -> 0                          // no interruption
             secondIndex in 53..58 -> {
-                // Secondary minute marker: base A=1 adds 100 ms,
-                // plus bit B determines another 100 or 200 ms.
-                if (bitState) 300 else 200
+                // Secondary minute marker: A=1 always (200 ms base),
+                // B-stream adds another 100 ms when set.
+                if (bitState) sampleRate * 3 / 10 else sampleRate / 5
             }
             else -> {
-                // Normal data seconds (1–52) and second 59
-                if (bitState) 200 else 100
+                // Normal data seconds (1–52): A=0 → 100 ms, A=1 → 200 ms
+                if (bitState) sampleRate / 5 else sampleRate / 10
             }
         }
-
-        val syncPrefixSamples = sampleRate * offDurationMs / 1000
 
         val wavBuffer = ByteArray(sampleRate * 2)
 
