@@ -18,9 +18,9 @@ import java.time.ZonedDateTime
  *  - Seconds 1–52  (data):      bit=0 → 100 ms off, bit=1 → 200 ms off
  *  - Seconds 53–58 (secondary minute marker): +100 ms extra
  *      → bit=0 → 200 ms off, bit=1 → 300 ms off
- *  - Second 59: NO carrier interruption (full carrier on).
- *      The uninterrupted carrier before second 0's 500 ms gap lets
- *      receivers reliably identify the minute boundary.
+ *  - Second 59: 100 ms off (base modulation only, no data).
+ *      Identical to a bit=0 second. Every second (0–59) has at
+ *      least 100 ms of carrier-off to delineate second boundaries.
  */
 class MsfRenderer : TimeSignalRenderer {
 
@@ -46,12 +46,12 @@ class MsfRenderer : TimeSignalRenderer {
         val bitState = ((data ushr secondIndex) and 1L) != 0L
 
         // Calculate carrier-off duration in samples.
-        // Per NPL spec, second 59 has NO carrier interruption — the
-        // continuous carrier before the 500 ms minute marker at second 0
-        // is what lets receivers identify the minute boundary.
+        // Every second (0–59) has at least 100 ms of carrier-off.
+        // The 500 ms gap at second 0 is the primary minute marker.
+        // Seconds 53–58 add 100 ms for the secondary minute marker.
         val syncPrefixSamples = when {
             secondIndex == 0 -> sampleRate / 2             // 500 ms (minute marker)
-            secondIndex == 59 -> 0                          // no interruption
+            secondIndex == 59 -> sampleRate / 10            // 100 ms (normal bit=0 base modulation)
             secondIndex in 53..58 -> {
                 // Secondary minute marker: A=1 always (200 ms base),
                 // B-stream adds another 100 ms when set.

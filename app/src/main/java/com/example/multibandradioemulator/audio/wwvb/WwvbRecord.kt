@@ -14,7 +14,7 @@ class WwvbRecord(time: ZonedDateTime) : TimeSignalRecord(
         minute = ensureTimezone(time, ZoneOffset.UTC).minute,
         hour = ensureTimezone(time, ZoneOffset.UTC).hour,
         dayOfYear = ensureTimezone(time, ZoneOffset.UTC).dayOfYear,
-        dut1sign = 0,
+        dut1sign = 0b101,
         dut1 = 0.0f,
         yearWithinCentury = ensureTimezone(time, ZoneOffset.UTC).year % 100,
         leapYear = ensureTimezone(time, ZoneOffset.UTC).toLocalDate().isLeapYear,

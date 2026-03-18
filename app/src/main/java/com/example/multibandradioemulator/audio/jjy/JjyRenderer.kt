@@ -84,6 +84,6 @@ class JjyRenderer(private val is60kHz: Boolean = false) : TimeSignalRenderer {
 
     companion object {
         private const val MORSE_JJY_MSB0 =
-            "001011011011001011011011001101011011000101101101100101101101100110101101100"
+            "00101101101100101101101100110101101100010110110110010110110110011010110110011"
     }
 }
