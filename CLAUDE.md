@@ -123,6 +123,15 @@ Rules:
 
 Priority by immediate payoff: **spec-derived host unit tests on the encoders first**, then **property-based invariants**, then **one hardware/real-signal smoke pass** per protocol.
 
+## Agentic PR verification
+
+Once a PR exists, a headless agent (`claude -p`, local) drives the running app end-to-end and posts a verdict as a PR comment via `gh pr comment`, then **waits for you to close/merge** — it never merges. It catches what the diff and unit tests miss: missing controls, unimplemented protocols/screens, dead flows, a UI that doesn't match the spec.
+
+- **Engine.** Native (Android) → **mobile-mcp** — the mobile counterpart to Playwright MCP: it navigates the native **accessibility tree** over `adb` and only falls back to screenshot coordinates when labels are missing. Run it against an **emulator or a dedicated test device, never your daily phone**. Alternative with more stable locators: appium-mcp (UiAutomator2).
+- **Reliability key = semantics.** `Modifier.testTag(...)`, `contentDescription`, `Modifier.semantics { }` (or accessibility labels on classic Views). Without them the agent falls back to fragile coordinates. Audit that the flows you verify (protocol selection, start/stop playback) are labeled first.
+- **Two layers.** The deterministic suites (spec-derived encoder unit tests, Espresso/Compose UI tests) stay the **hard merge gate**; the agentic pass is **advisory** — it explores the new surface, writes the missing regression tests, and leaves a readable verdict. Being non-deterministic, it **never vetoes a merge on its own**. (It cannot judge real RF lock — that stays the hardware/real-signal smoke pass.)
+- **Hard limits.** The verdict awaits your close and the agent **never merges** (see *Git & GitHub*). Point it at a dedicated emulator/test device; scope `--allowedTools`; use `--dangerously-skip-permissions` only in a controlled local env.
+
 ## Working rules
 
 - **Use superpowers skills whenever they apply** — invoke via `Skill` before acting; process skills before implementation skills.
