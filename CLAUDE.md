@@ -139,7 +139,7 @@ Once a PR exists, a headless agent (`claude -p`, local) drives the running app e
 - **TDD by default** for new/changed `audio/` logic. Don't merge encoding or rendering changes without host tests.
 - **The spec rules the encoders** — any change to a `*Renderer`/`*Record` must stay consistent with `docs/TIME_SIGNAL_SPECIFICATIONS.md`; update the doc in the same change if the protocol understanding changes.
 - **Keep protocol logic Android-free** — synthesis/encoding must stay pure Kotlin (host-testable); confine `AudioTrack`, `Log`, and other `android.*` calls to the playback boundary.
-- **UI work → always use `impeccable` style + superpowers** — for any Compose/UI change, invoke the `impeccable` skill (and its sub-skills: `shape`, `polish`, `critique`, etc.) and the superpowers skills so the result comes out clean, consistent, and production-quality. Don't hand-roll UI without them.
+- **UI work → design context first, then `impeccable` + superpowers** — for any Compose/UI change, invoke the `impeccable` skill (and its sub-skills: `shape`, `polish`, `critique`, etc.). **If the project has no design context (`PRODUCT.md` / `DESIGN.md` at the repo root), run `$impeccable teach`** — it explores the codebase and interviews you about the project's direction (register, users, brand personality, visual direction), then writes `PRODUCT.md` + `DESIGN.md` (auto-migrating a legacy `.impeccable.md` → `PRODUCT.md`); never hand-author it. Don't hand-roll UI without impeccable + superpowers.
 
 ## Git & GitHub
 
