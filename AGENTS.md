@@ -94,6 +94,15 @@ adb shell am start -n com.example.multibandradioemulator/.MainActivity
 
 # lint
 ./gradlew lint                   # Android Lint report in app/build/reports/lint-results-debug.html
+
+# screenshot tests (Compose Preview Screenshot Testing — host-side, LayoutLib; @PreviewTest
+# previews live under app/src/screenshotTest/)
+./gradlew updateDebugScreenshotTest      # (re)generate reference PNGs after an intentional UI change
+./gradlew validateDebugScreenshotTest    # compare against references — fails on visual drift
+
+# E2E (Maestro — emulator only)
+maestro test .maestro/                        # whole suite (a directory works)
+maestro check-syntax .maestro/*.yaml          # exits 1 on an invalid command — a real gate
 ```
 
 ## UI/UX workflow — stack-aware
@@ -132,11 +141,17 @@ The agent chooses. Each row names a **default** and **when to reach for somethin
 | Direction and taste | Impeccable + `android/skills` `adaptive`, `styles`, `edge-to-edge` | an unofficial Material 3 Expressive skill, as reference only | local |
 | Components | Material 3 composables, slots and theming | custom `Canvas` / `graphicsLayer` / AGSL for signature moments (e.g. the waveform visualizer) | local |
 | Compose idiom | `chrisbanes/skills`: `compose-component-design`, `compose-state-and-effects`, `compose-animations` | `compose-performance` on jank; `compose-focus-navigation` for keyboard and accessibility focus | local |
-| Observe a composable | `android studio render-compose-preview --print-semantics --output-image-file=<png> <file.kt> <PreviewFn>` — PNG plus semantics JSON; needs Android Studio Quail 2 Canary 1 or later running, with Gemini enabled and signed in | Compose Preview Screenshot Testing, headless: `./gradlew updateDebugScreenshotTest` / `validateDebugScreenshotTest` — not configured in this repo yet | local |
-| Observe the running app | `android screen capture --output=<png>` + `android layout --pretty` on an emulator or device | `maestro hierarchy` (Maestro isn't set up here yet) | local |
+| Observe a composable | `android studio render-compose-preview --print-semantics --output-image-file=<png> <file.kt> <PreviewFn>` — PNG plus semantics JSON; needs Android Studio Quail 2 Canary 1 or later running, with Gemini enabled and signed in | Compose Preview Screenshot Testing, headless: `./gradlew updateDebugScreenshotTest` / `validateDebugScreenshotTest` (HomeScreen, AntennaInfoScreen, OptionsScreen previews under `app/src/screenshotTest/`) | local |
+| Observe the running app | `android screen capture --output=<png>` + `android layout --pretty` on an emulator or device | `maestro hierarchy` | local |
 | Performance | `android-profiler` skill + `compose-performance` | — | local |
 | AI bootstrap | — | Gemini "Transform UI" / image-to-Compose in Android Studio: manual, IDE-only, a first draft at best | hosted |
-| Deterministic gate | **none committed yet** — no Espresso/Compose UI tests beyond the generated `ExampleInstrumentedTest` stub, no Maestro flows | today's only end-to-end check is the mandatory [Agentic PR verification](#agentic-pr-verification-mandatory-on-every-pr) pass below | — |
+| Deterministic gate | `.maestro/` (`maestro test .maestro/`) — one smoke flow committed so far, more owed as screens grow behaviour | the mandatory [Agentic PR verification](#agentic-pr-verification-mandatory-on-every-pr) pass below stays the advisory layer on top | local |
+
+- **`android` CLI — load the `android-cli` skill before using it.** The skill carries the verified
+  commands: `android run` (build, install, launch), `android emulator list|start|stop`,
+  `android screen capture --output=<png>`, `android layout --pretty`, `android docs search "<keywords>"`
+  (official docs, instead of guessing an API), `android describe` (build targets and APK paths).
+  More official skills: `android skills list` · `android skills add <id>`.
 
 ### The loop
 
@@ -153,7 +168,7 @@ PRODUCT.md + DESIGN.md + design-system.md (once they exist) + the spec at hand
                         ↓
             polish → performance measured → a11y audited
                         ↓
-   deterministic E2E if one exists (none here yet) → the Agentic PR verification pass
+   deterministic E2E (`.maestro/`, growing) → the Agentic PR verification pass
 ```
 
 **Never accept the first render.** Inspect the primary screen plus its loading, empty, error, disabled and validation states; every window size class; both themes; focus, keyboard and touch behaviour; contrast; text overflow and long translations (this app ships `values` and `values-es`); and the accessibility/semantics tree. A UI that matches a screenshot but breaks in dark mode or under TalkBack is not polished.
@@ -164,7 +179,7 @@ Compose must feel like Android, not like CSS translated to Kotlin:
 
 - **Map the design contract to Material 3** — `ColorScheme`, `Typography`, `Shapes` in `ui/theme/`, plus dimension and domain tokens once `design-system.md` exists. Prefer Material 3 components, slots and adaptive patterns; go custom (as `SignalVisualizerCard` already does) where the product's signature asks for it.
 - **See the pixels before reasoning about them.** Render the composable (`render-compose-preview` or screenshot tests) at the configurations that matter — font scale, dark theme, RTL — and read the semantics JSON, not only the image.
-- **This repo has no committed Maestro or Espresso/Compose UI flow yet.** Previews and screenshots catch visual problems, but nothing here currently proves navigation and behaviour on a real device beyond the Agentic PR verification pass — building that deterministic layer (Maestro or Compose UI test) is open work, not something to assume exists.
+- **`.maestro/` has one smoke flow so far** (`01-launch.yaml`, tag `smoke`) — it proves the app boots and the scaffold renders, nothing more. Previews and screenshots catch visual problems; real per-screen navigation and behaviour coverage (more Maestro flows, or a Compose UI test) is still open work as new screens ship.
 
 ### UI done means observed, not generated
 

@@ -1,10 +1,16 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.screenshot)
 }
 
 android {
     namespace = "com.example.multibandradioemulator"
+
+    // Compose Preview Screenshot Testing (host-side, LayoutLib). Enables the `screenshotTest`
+    // source set consumed by `./gradlew updateDebugScreenshotTest` / `validateDebugScreenshotTest`.
+    experimentalProperties["android.experimental.enableScreenshotTest"] = true
+
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -57,4 +63,10 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Compose Preview Screenshot Testing — previews under src/screenshotTest/ annotated
+    // @PreviewTest. Generate references: ./gradlew updateDebugScreenshotTest
+    // Verify: ./gradlew validateDebugScreenshotTest
+    screenshotTestImplementation(libs.screenshot.validation.api)
+    screenshotTestImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -10,6 +10,12 @@ kotlin = "2.0.21"
 composeBom = "2024.09.00"
 navigationCompose = "2.8.4"
 materialIconsExtended = "1.7.4"
+# Compose Preview Screenshot Testing (host-side, LayoutLib). Verified against the official
+# release notes (kb://android/studio/preview/compose-screenshot-testing-release-notes) on
+# 2026-09-17: alpha15 is current; alpha12 added AGP 9.0 compatibility, so it works with this
+# project's AGP 9.0.1. Kotlin 2.0.21 (this project) satisfies the Gradle-tasks-only path's
+# "1.9.20 or higher" floor.
+screenshot = "0.0.1-alpha15"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,8 +34,10 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
+screenshot-validation-api = { group = "com.android.tools.screenshot", name = "screenshot-validation-api", version.ref = "screenshot" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+screenshot = { id = "com.android.compose.screenshot", version.ref = "screenshot" }
 
