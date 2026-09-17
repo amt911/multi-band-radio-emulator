@@ -1,0 +1,11 @@
+appId: com.example.multibandradioemulator
+name: App launches and the main scaffold is visible
+tags:
+  - smoke
+---
+# Smoke flow: proves the app boots and the nav graph resolves to the Home tab. No account or
+# backend/fixture seed data needed.
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "main_scaffold"

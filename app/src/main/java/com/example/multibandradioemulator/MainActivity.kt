@@ -19,9 +19,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,7 +37,11 @@ import com.example.multibandradioemulator.ui.screens.HomeScreen
 import com.example.multibandradioemulator.ui.screens.OptionsScreen
 import com.example.multibandradioemulator.ui.theme.MultiBandRadioEmulatorTheme
 
+/** Root composable's Compose test tag, exposed as the Android view resourceId (see [MainApp]). */
+const val MAIN_SCAFFOLD_TEST_TAG = "main_scaffold"
+
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -45,6 +53,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainApp() {
     val navController = rememberNavController()
@@ -60,7 +69,12 @@ fun MainApp() {
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        // Exposes Compose testTag as the Android view resourceId, so Maestro (which reads the
+        // view hierarchy via UiAutomator, not Compose semantics) can select on `id:`.
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { testTagsAsResourceId = true }
+            .testTag(MAIN_SCAFFOLD_TEST_TAG),
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
