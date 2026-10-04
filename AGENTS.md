@@ -65,6 +65,9 @@ except for its one-line summary in this list.
   No abstraction without a second implementation, an IO boundary or a test seam.
 - **Codex and Claude Code** → [docs/agents/agent-compatibility.md](docs/agents/agent-compatibility.md).
   Rules are edited in `AGENTS.md` (or its `docs/agents/` document), never in `CLAUDE.md`.
+- **Remote Gradle cache (Reposilite)** → [docs/BUILD-CACHE.md](docs/BUILD-CACHE.md). If
+  `~/.gradle/gradle.properties` lacks `gradleCacheUrl`, tell the user this machine isn't wired yet
+  (section *Las máquinas de desarrollo leen*); never set `gradleCachePush=true` outside CI.
 
 ## Stack
 
