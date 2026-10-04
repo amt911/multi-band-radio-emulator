@@ -13,6 +13,15 @@ concurrency:
 permissions:
   contents: read
 
+# Remote build cache (settings.gradle.kts), for every Gradle job. Inert until the
+# GRADLE_CACHE_URL secret exists. Only pushes to main write to it: a PR reads but never
+# pushes, so a branch cannot poison what every other machine downloads.
+env:
+  GRADLE_CACHE_URL: ${{ secrets.GRADLE_CACHE_URL }}
+  GRADLE_CACHE_USER: ${{ secrets.GRADLE_CACHE_USER }}
+  GRADLE_CACHE_PASSWORD: ${{ secrets.GRADLE_CACHE_PASSWORD }}
+  GRADLE_CACHE_PUSH: ${{ github.event_name == 'push' && 'true' || 'false' }}
+
 jobs:
   build:
     name: Build (assembleDebug)
