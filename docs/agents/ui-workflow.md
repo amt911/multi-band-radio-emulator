@@ -40,12 +40,22 @@ The agent chooses. Each row names a **default** and **when to reach for somethin
 | Direction and taste | Impeccable + `android/skills` `adaptive`, `styles`, `edge-to-edge` | an unofficial Material 3 Expressive skill, as reference only | local |
 | Components | Material 3 composables, slots and theming | custom `Canvas` / `graphicsLayer` / AGSL for signature moments (e.g. the waveform visualizer) | local |
 | Compose idiom | `chrisbanes/skills`: `compose-component-design`, `compose-state-and-effects`, `compose-animations` | `compose-performance` on jank; `compose-focus-navigation` for keyboard and accessibility focus | local |
+| API ground truth | `aldefy/compose-skill`: `compose-expert` — one reference per topic, backed by the real `androidx` source | its Review Mode ("review this PR", a PR URL) as a second reviewer | local |
 | Observe a composable | `android studio render-compose-preview --print-semantics --output-image-file=<png> <file.kt> <PreviewFn>` — PNG plus semantics JSON; needs Android Studio Quail 2 Canary 1 or later running, with Gemini enabled and signed in | Compose Preview Screenshot Testing, headless: `./gradlew updateDebugScreenshotTest` / `validateDebugScreenshotTest` (HomeScreen, AntennaInfoScreen, OptionsScreen previews under `app/src/screenshotTest/`) | local |
 | Observe the running app | `android screen capture --output=<png>` + `android layout --pretty` on an emulator or device | `maestro hierarchy` | local |
 | Performance | `android-profiler` skill + `compose-performance` | — | local |
 | AI bootstrap | — | Gemini "Transform UI" / image-to-Compose in Android Studio: manual, IDE-only, a first draft at best | hosted |
 | Deterministic gate | `.maestro/` (`maestro test .maestro/`) — one smoke flow committed so far, more owed as screens grow behaviour | the mandatory [Agentic PR verification](pr-verification.md#agentic-pr-verification-mandatory-on-every-pr) pass below stays the advisory layer on top | local |
 
+- **`compose-expert` (`aldefy/compose-skill`) — the API ground truth, next to `chrisbanes/skills`.**
+  Load it before code that touches navigation (type-safe routes, Nav 2 → Nav 3), Paging 3, modifier
+  ordering, Material 3 theming or motion tokens, `CompositionLocal`s, or any API you are not sure
+  exists or is still current: it routes to one reference file and checks the claim against the
+  actual `androidx` source instead of guessing. The `chrisbanes` skills stay the default for
+  component API, state/effects and animation idiom; when the two disagree, the one quoting source
+  wins. Installed for every agent from `dasik-personal-config` (`common/ai-skills.json`): Claude
+  Code as the plugin `compose-expert@aldefy-compose-skill`, Codex and Antigravity through
+  `~/.agents/skills/compose-expert`.
 - **`android` CLI — load the `android-cli` skill before using it.** The skill carries the verified
   commands: `android run` (build, install, launch), `android emulator list|start|stop`,
   `android screen capture --output=<png>`, `android layout --pretty`, `android docs search "<keywords>"`
